@@ -1,0 +1,122 @@
+﻿<!DOCTYPE html>
+<html>
+
+<style>
+    body {
+        margin: 0;
+        font-size: 28px;
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .header {
+        background-color: #f1f1f1;
+        padding: 30px;
+        text-align: center;
+    }
+
+    #navbar {
+        position: sticky;
+        top: 0;
+        overflow: hidden;
+        background-color: #333;
+    }
+
+        #navbar a {
+            float: left;
+            display: block;
+            color: #f2f2f2;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+            font-size: 17px;
+        }
+
+            #navbar a:hover {
+                background-color: #ddd;
+                color: black;
+            }
+
+            #navbar a.active {
+                background-color: #04AA6D;
+                color: white;
+            }
+
+    .content {
+        padding: 16px;
+    }
+</style>
+</head>
+<body>
+
+    <div class="header">
+        <h2>Elderly Rehab</h2>
+        <p>Web for check patient information.</p>
+    </div>
+
+    <div id="navbar">
+        <a class="active" href="javascript:void(0)"><i class="home.png">Home</a>
+        <a href="javascript:void(0)">Search</a>
+        <a href="javascript:void(0)">Contact</a>
+    </div>
+    </style>
+    </head>
+    <body>
+        <h1>Enter HN number</h1>
+
+        <label for="inputNumber">enter HN number:</label>
+        <input type="number" id="inputNumber" placeholder="etc 12345">
+        <button onclick="fetchData()">read</button>
+
+        <h2>Result:</h2>
+        <div id="output">
+        </div>
+
+        <script>
+function fetchData() {
+  const inputNumber = document.getElementById('inputNumber').value;
+  const outputDiv = document.getElementById('output');
+  outputDiv.innerHTML = 'กำลังโหลดข้อมูล...';
+
+  if (!inputNumber) {
+    outputDiv.innerHTML = 'กรุณากรอกตัวเลขก่อน';
+    return;
+  }
+
+const webAppUrl = 'https://script.google.com/macros/s/AKfycbzlB3dang_GaQEubadnGPXymjr0f-Rwf3hW3Ruu8vXO2ADFJREs98xxfLYFzTbhcXH-/exec';
+  fetch(`${webAppUrl}?number=${inputNumber}`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        outputDiv.innerHTML = `เกิดข้อผิดพลาด: ${data.error}`;
+      } else if (data.length === 0 || (data.length === 1 && data[0][0] === "HospitalID")) { // ตรวจสอบว่าไม่มีข้อมูล หรือมีแค่ header
+        outputDiv.innerHTML = 'ไม่พบข้อมูลสำหรับ HospitalID ที่ระบุ';
+      } else {
+        let htmlContent = '<table>';
+        // สร้างหัวตาราง
+        const headers = ["HospitalID", "BirthDate", "Age", "Gender"];
+        htmlContent += '<tr>';
+        headers.forEach(header => {
+            htmlContent += `<th>${header}</th>`;
+        });
+        htmlContent += '</tr>';
+
+        // แสดงข้อมูลที่พบ
+        data.forEach(row => {
+            htmlContent += '<tr>';
+            row.forEach(cell => {
+                htmlContent += `<td>${cell}</td>`;
+            });
+            htmlContent += '</tr>';
+        });
+        htmlContent += '</table>';
+        outputDiv.innerHTML = htmlContent;
+      }
+    })
+    .catch(error => {
+      outputDiv.innerHTML = `เกิดข้อผิดพลาดในการเชื่อมต่อ: ${error.message}`;
+      console.error('Error:', error);
+    });
+}
+        </script>
+    </body>
+</html>

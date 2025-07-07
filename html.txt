@@ -1,0 +1,572 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HN Search & Record Details with Charts</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.x/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.x/dist/chartjs-adapter-luxon.min.js"></script>
+
+    <style>
+        
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .detail-table th, .detail-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .detail-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .detail-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .detail-table tr:hover {
+            background-color: #e9e9e9;
+        }
+        .detail-button {
+            background-color: #4CAF50; /* Green */
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px; /* เพิ่ม margin-top ให้ปุ่มห่างจากข้อความด้านบน */
+        }
+        .detail-button:hover {
+            background-color: #45a049;
+        }
+        
+        #recordDetailDisplay {
+            margin-top: 20px; /* เพิ่มระยะห่างจากส่วนบน */
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #fff;
+            max-height: 400px; 
+            overflow-y: auto; 
+        }
+        .chart-container-flex {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap; 
+            margin-top: 20px; /* เพิ่มระยะห่างจากส่วนบน */
+        }
+        .chart-item {
+            width: 48%; 
+            min-width: 300px; 
+            height: 350px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            margin-bottom: 20px; 
+        }
+        .chart-item.full-width {
+            width: 98%; 
+            height: 400px; 
+        }
+        
+        #chartsDisplay { 
+            width: 800px; 
+            height: auto;
+            display: none; 
+            margin-top: 20px; 
+        }
+        
+        #contentArea {
+            position: absolute;
+            left: 290px;
+            top: 720px; 
+            width: 800px;
+            height: auto;
+        }
+        
+        #resultDisplay {
+            color: black;
+            font-size: 24px;
+            font-family: Inter;
+            word-wrap: break-word;
+            width: 100%; /* ให้เต็มความกว้างของ contentArea */
+            height: auto;
+        }
+
+        #detailButtonContainer {
+            width: 100%; 
+            text-align: left; 
+            margin-top: 15px; 
+        }
+    </style>
+
+</head>
+<body>
+<div data-layer="Desktop - 1" class="Desktop1" style="width: 1440px; height: 1476px; position: relative; background: white; overflow: hidden">
+    <div data-layer="BGImage" class="Bgimage" style="width: 1440px; height: 1476px; left: 0px; top: 0px; position: absolute; background: linear-gradient(139deg, white 47%)"></div>
+    <div data-layer="Rectangle 5" class="Rectangle5" style="width: 1083px; height: 408px; left: 232px; top: 137px; position: absolute; background: white; border-radius: 24px; border: 2px #B2B2B2 solid"></div>
+    <div data-layer="Rectangle 6" class="Rectangle6" style="width: 1324px; height: 116px; left: -247px; top: 77px; position: absolute; background: #81C77F; border-radius: 24px"></div>
+    <div data-layer="HOW TO USE" class="HowToUse" style="left: 186px; top: 77px; position: absolute; color: black; font-size: 96px; font-family: Inter; font-weight: 800; word-wrap: break-word">HOW TO USE</div>
+    <div data-layer="a b c d e f" class="ABCDEF" style="left: 273px; top: 217px; position: absolute; color: black; font-size: 40px; font-family: Inter; font-weight: 500; word-wrap: break-word">a<br/>b<br/>c<br/>d<br/>e<br/>f</div>
+    <div data-layer="Rectangle 3" class="Rectangle3" style="width: 1199px; height: 679px; left: 272px; top: 704px; position: absolute; background: white; border-radius: 24px; border: 2px #B2B2B2 solid"></div>
+    <div data-layer="Rectangle 2" class="Rectangle2" style="width: 1324px; height: 92px; left: 171px; top: 643px; position: absolute; background: #3853A4; border-radius: 24px"></div>
+    <div data-layer="Rectangle 4" class="Rectangle4" style="width: 479px; height: 57px; left: 435px; top: 660px; position: absolute; background: #EAEAEA; border-radius: 12px"></div>
+    <div data-layer="Search HN:" class="SearchHn" style="left: 199px; top: 665px; position: absolute; color: white; font-size: 40px; font-family: Inter; font-weight: 500; word-wrap: break-word">Search HN:</div>
+    <div data-layer="Input Component" data-has-label="false" data-has-validation-text="false" data-states="Default" data-type="Underline" class="InputComponent" style="left: 459px; top: 665px; position: absolute; flex-direction: column; justify-content: flex-start; align-items: flex-start; gap: 4px; display: inline-flex">
+        <div data-layer="Container" class="Container" style="width: 294px; padding-top: 6px; padding-bottom: 6px; padding-left: 2px; padding-right: 8px; border-bottom: 1.40px #C5C5C5 solid; justify-content: flex-start; align-items: center; gap: 10px; display: inline-flex">
+            <div data-layer="Placeholder" data-has-icon-l="false" data-has-icon-r="false" data-has-input-text="true" data-has-prefix="true" data-has-suffix="false" data-state="Default" class="Placeholder" style="flex: 1 1 0; justify-content: space-between; align-items: center; display: flex">
+                <div data-layer="Left Container" class="LeftContainer" style="width: 236px; justify-content: flex-start; align-items: center; gap: 4px; display: flex">
+                    <div data-layer="Prefix" data-type="Prefix" class="Prefix" style="flex-direction: column; justify-content: center; align-items: center; gap: 10px; display: inline-flex">
+                        <div data-layer="Prefix" class="Prefix" style="color: #7C7C7C; font-size: 18px; font-family: Poppins; font-weight: 400; line-height: 22px; word-wrap: break-word">HN</div>
+                    </div>
+                    <div data-layer="Input Text" data-type="Default" class="InputText" style="flex: 1 1 0; color: #7C7C7C; font-size: 18px; font-family: Poppins; font-weight: 400; line-height: 22px; word-wrap: break-word; border: none; outline: none; background: transparent;" placeholder="000000">
+                        <input type="text" id="hnInput" name="hn" list="hnSuggestions" style="flex: 1 1 0; color: #7C7C7C; font-size: 18px; font-family: Poppins; font-weight: 400; line-height: 22px; word-wrap: break-word; border: none; outline: none; background: transparent;" placeholder="000000">
+                        <datalist id="hnSuggestions"></datalist>
+                    </div>
+                </div>
+                <div data-layer="Right Container" class="RightContainer" style="justify-content: flex-end; align-items: center; gap: 6px; display: flex"></div>
+            </div>
+        </div>
+    </div>
+    <div data-layer="Rectangle 1" class="Rectangle1" style="width: 150px; height: 1476px; left: 0px; top: 0px; position: absolute; background: rgba(58.10, 170.41, 54.89, 0.37)"></div>
+    <img data-layer="MDTLOGO 1" class="Mdtlogo1" style="width: 140px; height: 140px; left: 5px; top: 7px; position: absolute" src="./MDTLOGO.jpg" />
+    <img data-layer="home 1" class="Home1" style="width: 120px; height: 120px; left: 15px; top: 290px; position: absolute" src="./home.png" />
+    <img data-layer="graph 1" class="Graph1" style="width: 120px; height: 120px; left: 15px; top: 425px; position: absolute" src="./graph.png" />
+
+    <div id="contentArea" style="position: absolute; left: 290px; top: 720px; width: 800px; height: auto;">
+        <div id="resultDisplay" style="color: black; font-size: 24px; font-family: Inter; word-wrap: break-word; width: 100%; height: auto;"></div>
+        
+        <div id="detailButtonContainer" style="width: 100%; text-align: left; margin-top: 15px;">
+            </div>
+
+        <div id="recordDetailDisplay">
+            <p>คลิก "ดูรายละเอียด" เพื่อดูข้อมูลเพิ่มเติมของ HN</p>
+        </div>
+
+        <div id="chartsDisplay" class="chart-container-flex">
+            <div class="chart-item full-width">
+                <h2>แนวโน้ม Weight_Total (เฉพาะ HN นี้)</h2>
+                <canvas id="weightChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+<script>
+    const hnInput = document.getElementById('hnInput');
+    const hnSuggestionsDatalist = document.getElementById('hnSuggestions');
+    const resultDisplay = document.getElementById('resultDisplay');
+    const recordDetailDisplay = document.getElementById('recordDetailDisplay');
+    const chartsDisplay = document.getElementById('chartsDisplay'); 
+    const detailButtonContainer = document.getElementById('detailButtonContainer'); // เพิ่มตัวแปรสำหรับ container ปุ่ม
+
+    // URL ของ Google Apps Script Web App สำหรับค้นหาข้อมูล HN เดียว (doPost)
+    const appsScriptSearchUrl = 'https://script.google.com/macros/s/AKfycbz3ZFN1u30MQxbPmzSONJFU0bPRHKMSA4_HghYRrkjz6oy2npa3jMjHfT0eCgUfNhI3xQ/exec'; 
+
+    // URL ของ Google Apps Script Web App สำหรับดึงรายการ HN ทั้งหมด (doGet)
+    const appsScriptListHnUrl = 'https://script.google.com/macros/s/AKfycbxVW2jwiKh4BapaqYolqcH-_xhoJI8Vp5ESfFtGjn1g5lfPug7_OVpV9u9ruodHmAtOcA/exec'; 
+
+    // URL ของ Google Apps Script Web App สำหรับดึงข้อมูลรายละเอียดและข้อมูลกราฟของ HN นั้นๆ
+    const appsScriptRecordDetailsUrl = 'https://script.google.com/macros/s/AKfycbwaEXuilaUel2D5LPCYbgTBsErWIdvSnA-9TM88RxAW332eB67Y6HRjVazteAi1F60x/exec'; 
+
+    let debounceTimer;
+
+    let genderChartInstance;
+
+    let ageChartInstance;  
+
+    let weightChartInstance;
+
+
+
+    // ฟังก์ชันสำหรับดึงข้อมูล HN ทั้งหมดและสร้าง datalist options
+
+    async function loadHNSuggestions() {
+
+        try {
+
+            const response = await fetch(appsScriptListHnUrl);
+
+            if (!response.ok) {
+
+                throw new Error(`HTTP error! status: ${response.status}`);
+
+            }
+
+            const hnList = await response.json();
+
+
+
+            hnSuggestionsDatalist.innerHTML = '';
+
+            hnList.forEach(hn => {
+
+                const option = document.createElement('option');
+
+                option.value = hn;
+
+                hnSuggestionsDatalist.appendChild(option);
+
+            });
+
+        } catch (error) {
+
+            console.error('Error loading HN suggestions:', error);
+
+        }
+
+    }
+
+
+
+    // ฟังก์ชันสำหรับดึงและแสดงข้อมูล HN เมื่อมีการเปลี่ยนแปลงใน input
+
+    async function fetchAndDisplayHN(hnValue) {
+
+       
+
+        recordDetailDisplay.innerHTML = '<p>คลิก "ดูรายละเอียด" เพื่อดูข้อมูลเพิ่มเติมของ HN</p>';
+
+        chartsDisplay.style.display = 'none'; // ซ่อนกราฟไว้ก่อน
+
+        detailButtonContainer.innerHTML = ''; // เคลียร์ปุ่มทุกครั้งที่มีการค้นหาใหม่
+
+
+
+        if (!hnValue.trim()) {
+
+            resultDisplay.innerHTML = '<p>กรุณากรอก HN</p>';
+
+            return;
+
+        }
+
+
+
+        try {
+
+            resultDisplay.innerHTML = '<p>กำลังค้นหาข้อมูล...</p>';
+
+
+
+            const formData = new FormData();
+
+            formData.append('hn', hnValue.trim());
+
+
+
+            const response = await fetch(appsScriptSearchUrl, {
+
+                method: 'POST',
+
+                body: formData,
+
+            });
+
+
+
+            if (!response.ok) {
+
+                throw new Error(`HTTP error! status: ${response.status}`);
+
+            }
+
+
+
+            const resultJson = await response.json();
+
+
+
+           if (resultJson.found) {
+
+    const birthDate = new Date(resultJson.BirthDate);
+    const formattedBirthDate = birthDate.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }); // 'en-CA' gives YYYY-MM-DD
+
+    resultDisplay.innerHTML = `
+        <h3>ข้อมูล HN: ${resultJson.HospitalIDs}</h3>
+        <p>วันเกิด: ${formattedBirthDate}</p>
+        <p>อายุ: ${resultJson.Age}</p>
+        <p>เพศ: ${resultJson.Gender}</p>
+
+                `;
+                detailButtonContainer.innerHTML = `
+                    <button class="detail-button" onclick="showRecordDetails('${resultJson.HospitalIDs}')">ดูรายละเอียดและกราฟ</button>
+                `;
+
+            } else {
+
+                resultDisplay.innerHTML = `<p>${resultJson.message}</p>`;
+
+                detailButtonContainer.innerHTML = ''; // หากไม่พบ HN ก็เคลียร์ปุ่ม
+
+            }
+
+
+
+        } catch (error) {
+
+            console.error('Error fetching data:', error);
+
+            resultDisplay.innerHTML = '<p>เกิดข้อผิดพลาดในการดึงข้อมูล</p>';
+
+            detailButtonContainer.innerHTML = ''; // หากเกิดข้อผิดพลาดก็เคลียร์ปุ่ม
+
+        }
+
+    }
+
+
+
+    // ฟังก์ชัน: ดึงและแสดงข้อมูลรายละเอียดจาก Spreadsheet เฉพาะ HN และวาดกราฟทั้งหมด
+
+    async function showRecordDetails(hn) {
+
+        recordDetailDisplay.innerHTML = '<p>กำลังโหลดข้อมูลรายละเอียดและกราฟ...</p>';
+
+        chartsDisplay.style.display = 'none'; // ซ่อนกราฟในขณะโหลด
+
+
+
+        try {
+
+            const response = await fetch(`${appsScriptRecordDetailsUrl}?hn=${hn}`);
+
+            if (!response.ok) {
+
+                throw new Error(`HTTP error! status: ${response.status}`);
+
+            }
+
+            const data = await response.json();
+
+
+
+            if (data.success) {
+
+               
+
+                if (data.records && data.records.length > 0) {
+
+                    let tableHtml = '<table class="detail-table">';
+
+                    tableHtml += '<thead><tr>';
+
+                    const headers = Object.keys(data.records[0]);
+
+                    headers.forEach(header => {
+
+                        tableHtml += `<th>${header}</th>`;
+
+                    });
+
+                    tableHtml += '</tr></thead>';
+
+
+
+                    tableHtml += '<tbody>';
+
+                    data.records.forEach(record => {
+
+                        tableHtml += '<tr>';
+
+                        headers.forEach(header => {
+
+                            tableHtml += `<td>${record[header]}</td>`;
+
+                        });
+
+                        tableHtml += '</tr>';
+
+                    });
+
+                    tableHtml += '</tbody></table>';
+
+                    recordDetailDisplay.innerHTML = `<h3>รายละเอียดบันทึกของ HN: ${data.hn}</h3>` + tableHtml;
+
+                } else {
+
+                     recordDetailDisplay.innerHTML = `<p>ไม่พบข้อมูลบันทึกเพิ่มเติมสำหรับ HN: ${data.hn}</p>`;
+
+                }
+
+
+
+               
+
+                chartsDisplay.style.display = 'flex';
+
+
+
+                // กราฟแนวโน้ม Weight_Total
+
+                const weightCtx = document.getElementById('weightChart').getContext('2d');
+
+                if (weightChartInstance) {
+
+                    weightChartInstance.destroy();
+
+                }
+
+                weightChartInstance = new Chart(weightCtx, {
+
+                    type: 'line',
+
+                    data: {
+
+                        datasets: [{
+
+                            label: 'Weight_Total (kg)',
+
+                            data: data.weightChartData,
+
+                            borderColor: 'rgb(75, 192, 192)',
+
+                            tension: 0.1,
+
+                            fill: false
+
+                        }]
+
+                    },
+
+                    options: {
+
+                        responsive: true,
+
+                        maintainAspectRatio: false,
+
+                        plugins: {
+
+                            legend: {
+
+                                position: 'top',
+
+                            }
+
+                        },
+
+                        scales: {
+
+                            x: {
+
+                                type: 'time',
+
+                                time: {
+
+                                    unit: 'day',
+
+                                    tooltipFormat: 'yyyy-MM-dd HH:mm:ss'
+
+                                },
+
+                                title: {
+
+                                    display: true,
+
+                                    text: 'Timestamp'
+
+                                }
+
+                            },
+
+                            y: {
+
+                                beginAtZero: false,
+
+                                title: {
+
+                                    display: true,
+
+                                    text: 'Weight (kg)'
+
+                                }
+
+                            }
+
+                        }
+
+                    },
+
+                });
+
+
+
+
+
+                /* ถ้า failed*/
+
+            } else {
+
+                recordDetailDisplay.innerHTML = `<p>${data.error || 'ไม่สามารถดึงข้อมูลรายละเอียดได้'}</p>`;
+
+                chartsDisplay.style.display = 'none'; // ซ่อนกราฟถ้ามี error
+
+            }
+
+
+
+        } catch (error) {
+
+            console.error('Error fetching record details:', error);
+
+            recordDetailDisplay.innerHTML = '<p>เกิดข้อผิดพลาดในการดึงข้อมูลรายละเอียด</p>';
+
+            chartsDisplay.style.display = 'none'; // ซ่อนกราฟถ้ามี error
+
+        }
+
+    }
+
+
+
+    hnInput.addEventListener('input', () => {
+
+        clearTimeout(debounceTimer);
+
+        debounceTimer = setTimeout(() => {
+
+            fetchAndDisplayHN(hnInput.value);
+
+        }, 300);
+
+    });
+
+
+
+    hnInput.addEventListener('change', () => {
+
+        fetchAndDisplayHN(hnInput.value);
+
+    });
+
+
+
+    // เริ่มต้นแสดงข้อความเมื่อหน้าเว็บโหลด และโหลดรายการ HN สำหรับ datalist
+
+    document.addEventListener('DOMContentLoaded', () => {
+
+        resultDisplay.innerHTML = '<p>กรุณากรอก HN</p>';
+
+        recordDetailDisplay.innerHTML = '<p>คลิก "ดูรายละเอียด" เพื่อดูข้อมูลเพิ่มเติมของ HN</p>';
+
+        chartsDisplay.style.display = 'none'; // ซ่อนกราฟเริ่มต้น
+
+        detailButtonContainer.innerHTML = ''; // เคลียร์ปุ่มเมื่อโหลดหน้าครั้งแรก
+
+        loadHNSuggestions();
+
+    });
+
+</script>
+
+</div>
+
+</body>
+
+</html> 

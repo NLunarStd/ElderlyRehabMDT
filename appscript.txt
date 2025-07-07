@@ -1,0 +1,206 @@
+const MAIN_SHEET_NAME = "UserIDs";
+
+function doPost(e) {
+  var hn = e.parameter.hn;
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(MAIN_SHEET_NAME);
+  var data = sheet.getDataRange().getValues();
+
+  var result = { found: false, message: "ไม่พบข้อมูลสำหรับ HN: " + hn };
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(hn).trim()) {
+      result = {
+        found: true,
+        HospitalIDs: data[i][0],
+        BirthDate: data[i][1],
+        Age: data[i][2],
+        Gender: data[i][3]
+      };
+      break;
+    }
+  }
+
+  return ContentService.createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+function doGet(e) {
+  var hn = e.parameter.hn; // This will be "000000" (or "000001", etc.) from your client-side
+  if (!hn) {
+    return ContentService.createTextOutput(JSON.stringify({ error: "HN parameter is missing." }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  try {
+    // --- THIS IS THE CRITICAL CORRECTION ---
+    // Prepend "HN" to the HN value to match the actual file names in your Google Drive.
+    var actualSheetFileName = "HN" + hn; // If hn is "000000", this becomes "HN000000"
+
+    Logger.log("Attempting to open spreadsheet file: " + actualSheetFileName); // Good for debugging!
+
+    var ss = SpreadsheetApp.openByName(actualSheetFileName); // Use the correctly constructed file name
+    var sheet = ss.getSheets()[0]; // Select the first sheet (tab) in that file
+
+    if (!sheet) {
+      // This 'if' block will only be reached if the file was found but the first sheet was not.
+      // More likely, the error will be caught by the catch block below if the file itself isn't found.
+      Logger.log("Error: First sheet (tab) not found in spreadsheet file '" + actualSheetFileName + "'.");
+      return ContentService.createTextOutput(JSON.stringify({ success: false, hn: hn, error: "ไม่พบชีท (tab) ในไฟล์สำหรับ HN นี้: " + hn }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var lastRow = sheet.getLastRow();
+    var numRowsToGet = Math.min(lastRow - 1, 999);
+
+    var data = [];
+    if (numRowsToGet > 0) {
+      data = sheet.getRange(2, 1, numRowsToGet, sheet.getLastColumn()).getValues();
+    }
+
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+    var records = [];
+    var weightData = [];
+    // Re-verify these headers in your actual Google Sheet files! Case-sensitive.
+    var timestampColIndex = headers.indexOf('TimeStamp'); // Could be 'Timestamp' or 'timestamp'
+    var weightTotalColIndex = headers.indexOf('Weight_Total'); // Could be 'Weight_Total' or 'Weight Total'
+
+    if (timestampColIndex === -1 || weightTotalColIndex === -1) {
+      Logger.log("Missing required columns for chart data in sheet: " + hn + ". Headers found: " + headers.join(', '));
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        hn: hn,
+        error: "ไม่พบ Header 'TimeStamp' หรือ 'Weight_Total' ในชีท: " + hn
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var record = {};
+      for (var j = 0; j < headers.length; j++) {
+        record[headers[j]] = row[j];
+      }
+      records.push(record);
+
+      var weight = parseFloat(row[weightTotalColIndex]);
+      var timestampValue = row[timestampColIndex];
+
+      if (!isNaN(weight) && timestampValue) {
+        var chartXValue;
+        if (timestampValue instanceof Date) {
+          chartXValue = timestampValue.toISOString();
+        } else if (typeof timestampValue === 'string') {
+          var parsedDate = new Date(timestampValue);
+          if (!isNaN(parsedDate.getTime())) {
+            chartXValue = parsedDate.toISOString();
+          } else {
+            Logger.log("Invalid date string in row " + (i + 2) + ": " + timestampValue);
+            continue;
+          }
+        } else {
+          Logger.log("Unexpected timestamp type in row " + (i + 2) + ": " + typeof timestampValue + " - " + timestampValue);
+          continue;
+        }
+
+        weightData.push({
+          x: chartXValue,
+          y: weight
+        });
+      }
+    }
+
+    Logger.log("Successfully processed HN: " + hn);
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      hn: hn,
+      records: records,
+      weightChartData: weightData
+    }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    Logger.log("Error processing HN " + hn + ": " + err.message);
+    return ContentService.createTextOutput(JSON.stringify({ success: false, hn: hn, error: "เกิดข้อผิดพลาดในการดึงข้อมูลรายละเอียด: " + err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+function getHNRecordDetails(e) {
+  var hn = e.parameter.hn;
+  if (!hn) {
+    return ContentService.createTextOutput(JSON.stringify({ error: "HN parameter is missing." }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  try {
+    var actualSheetFileName = "HN" + hn; // If hn is "000000", this becomes "HN000000"
+    Logger.log("Attempting to open spreadsheet file: " + actualSheetFileName); // Good for debugging!
+    var ss = SpreadsheetApp.openByName(actualSheetFileName); 
+    var sheet = ss.getSheets()[0]; // เลือกชีทแรกใน Spreadsheet นั้น
+    if (!sheet) {
+      // This 'if' block will only be reached if the file was found but the first sheet was not.
+      // More likely, the error will be caught by the catch block below if the file itself isn't found.
+      Logger.log("Error: First sheet (tab) not found in spreadsheet file '" + actualSheetFileName + "'.");
+      return ContentService.createTextOutput(JSON.stringify({ success: false, hn: hn, error: "ไม่พบชีท (tab) ในไฟล์สำหรับ HN นี้: " + hn }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }    
+    // ดึงข้อมูลตั้งแต่แถวที่ 2 ถึงแถวที่ 1000 (หรือจนถึงแถวสุดท้ายถ้ามีน้อยกว่า 1000)
+    var lastRow = sheet.getLastRow();
+    var numRowsToGet = Math.min(lastRow - 1, 999); 
+    
+    var data = [];
+    if (numRowsToGet > 0) {
+      data = sheet.getRange(2, 1, numRowsToGet, sheet.getLastColumn()).getValues(); 
+    }
+    
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]; // ดึง Header Row
+
+    var records = [];
+    var genderCounts = { "Male": 0, "Female": 0, "Other": 0 };
+    var ageGroups = {
+      "0-10": 0, "11-20": 0, "21-30": 0, "31-40": 0,
+      "41-50": 0, "51-60": 0, "61+": 0
+    };
+    // เพิ่มตัวแปรสำหรับข้อมูล Weight_Total
+    var weightData = []; 
+    var recordCounter = 1; // Initialize a counter for the x-axis
+    var weightTotalColIndex = headers.indexOf('Weight_Total'); // Index ของ Weight_Total
+
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var record = {};
+      for (var j = 0; j < headers.length; j++) {
+        record[headers[j]] = row[j];
+      }
+      records.push(record);
+
+      
+      // ประมวลผลข้อมูล Weight_Total สำหรับกราฟเส้น
+      if (weightTotalColIndex !== -1 && row[weightTotalColIndex] !== undefined && row[weightTotalColIndex] !== "") {
+        var weight = parseFloat(row[weightTotalColIndex]); // ใช้น้ำหนักเป็น float
+        var timestamp = row[headers.indexOf('TimeStamp')]; 
+        
+        if (!isNaN(weight)) {
+           weightData.push({
+            x: recordCounter, // Use the counter for the x-axis
+            y: weight
+          });
+          recordCounter++; // Increment the counter for the next valid weight entry
+          
+        }
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      hn: hn,
+      records: records,       // ข้อมูลสำหรับตาราง
+      genderChartData: genderCounts, // ข้อมูลสำหรับกราฟเพศ
+      ageChartData: ageGroups,   // ข้อมูลสำหรับกราฟอายุ
+      weightChartData: weightData // เพิ่มข้อมูล Weight_Total สำหรับกราฟ
+    }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, hn: hn, error: "ไม่พบ Spreadsheet สำหรับ HN นี้ หรือเกิดข้อผิดพลาด: " + err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}

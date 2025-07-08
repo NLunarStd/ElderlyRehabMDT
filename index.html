@@ -5,7 +5,7 @@
 <!-- Removed D3.js import -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/dist/date-fns.umd.min.js"></script> 
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.min.js"></script>
 <style>
     body {
         font-family: 'Inter', sans-serif; /* Using Inter font */
@@ -173,15 +173,37 @@
         let lastFoundHN = null; 
         let weightChartInstance = null; // Variable to hold the Chart.js instance
 
-        // Ensure Chart.js and its adapter are loaded before attempting to register
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof Chart !== 'undefined' && typeof Chart._adapters !== 'undefined' && typeof Chart._adapters._date !== 'undefined') {
-                Chart.register(Chart._adapters._date);
-                console.log("Chart.js date-fns adapter explicitly registered on DOMContentLoaded.");
+        // Manually assign date-fns to the Chart.js adapter's internal date utility
+        // This should be done after both date-fns and chartjs-adapter-date-fns are loaded.
+        // This is a workaround to ensure the adapter finds date-fns functions.
+        (function() {
+            if (typeof Chart !== 'undefined' && typeof dateFns !== 'undefined') {
+                try {
+                    // This line attempts to register the date-fns adapter.
+                    // The adapter itself usually handles finding date-fns if it's global.
+                    // If Chart._adapters._date is not directly exposed for registration,
+                    // we might need a more direct assignment.
+                    if (Chart._adapters && Chart._adapters._date) {
+                         // This is the direct assignment that might be missing
+                        Chart._adapters._date.date = dateFns;
+                        console.log("date-fns manually assigned to Chart._adapters._date.date.");
+                    }
+                    // Also try the general Chart.register approach for adapters
+                    // This assumes the adapter exposes itself as a plugin
+                    if (typeof ChartjsAdapterDateFns !== 'undefined') { // Check if the adapter global is available
+                         Chart.register(ChartjsAdapterDateFns); // This is how some adapters are registered
+                         console.log("ChartjsAdapterDateFns explicitly registered as a plugin.");
+                    } else {
+                        console.warn("ChartjsAdapterDateFns global variable not found for plugin registration.");
+                    }
+                    
+                } catch (e) {
+                    console.error("Error during Chart.js date adapter manual setup:", e);
+                }
             } else {
-                console.warn("Chart.js or date-fns adapter not fully loaded/available for explicit registration on DOMContentLoaded.");
+                console.warn("Chart.js or dateFns not fully loaded/available for manual adapter setup.");
             }
-        });
+        })();
 
 
         // Function to format date to Thai Buddhist calendar

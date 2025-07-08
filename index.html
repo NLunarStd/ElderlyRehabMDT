@@ -37,7 +37,7 @@
         border-radius: 5px;
         cursor: pointer;
         transition: background-color 0.3s ease;
-        margin: 5px; /* เพิ่มระยะห่างระหว่างปุ่ม */
+        margin: 5px; /* Add spacing between buttons */
     }
     button:hover {
         background-color: #0056b3;
@@ -93,7 +93,7 @@
 
     <script>
         // *** สำคัญ: อัปเดต URL นี้ด้วย Web app URL ของคุณ ***
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx3g0WPy4UibEkZJWROu7kAeXz-Bt2GrKbGBzpiFlG4yxyL8CILJTi2TyLwV2j-DGwScg/exec';
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwkjfP_b3raLdg8kAFpuB_j2jeOO6sGdgCECf_pSKOvWtHgydGogjyk27UFslUviB8-gw/exec';
         // เก็บ HN ที่ค้นพบในรอบล่าสุด
         let lastFoundHN = null; 
 
@@ -124,7 +124,7 @@
             
             outputDiv.innerHTML = 'กำลังค้นหาข้อมูลทั่วไป...';
             outputDiv.className = ''; 
-            detailButton.style.display = 'none'; // ซ่อนปุ่มรายละเอียดไว้ก่อน
+            detailButton.style.display = 'none'; // Hide detail button initially
 
             if (!inputHN) {
                 outputDiv.innerHTML = '<span class="error">กรุณากรอก Hospital ID ก่อน</span>';
@@ -132,8 +132,8 @@
                 return;
             }
 
-            // เพิ่มพารามิเตอร์ 'hn' เพื่อให้ Apps Script รู้ว่าต้องเรียกฟังก์ชัน getPatientDataFromMainSheet
-            const url = `${https://script.google.com/macros/s/AKfycbx3g0WPy4UibEkZJWROu7kAeXz-Bt2GrKbGBzpiFlG4yxyL8CILJTi2TyLwV2j-DGwScg/exec}?hn=${encodeURIComponent(inputHN)}`;
+            // Add 'hn' parameter to let Apps Script know to call getPatientDataFromMainSheet
+            const url = `${WEB_APP_URL}?hn=${encodeURIComponent(inputHN)}`; // Corrected line
 
             try {
                 const response = await fetch(url);
@@ -159,8 +159,8 @@
                                     </tr>`;
                     htmlContent += '</table>';
                     outputDiv.innerHTML = htmlContent;
-                    lastFoundHN = data.HospitalID; // เก็บ HN ที่พบ
-                    detailButton.style.display = 'inline-block'; // แสดงปุ่มรายละเอียด
+                    lastFoundHN = data.HospitalID; // Store found HN
+                    detailButton.style.display = 'inline-block'; // Show detail button
                 } else {
                     outputDiv.innerHTML = `<span class="error">${data.message}</span>`;
                     lastFoundHN = null;
@@ -183,8 +183,8 @@
             outputDiv.innerHTML = `กำลังดึงข้อมูลรายละเอียดสำหรับ HN: ${lastFoundHN} ...`;
             outputDiv.className = ''; 
 
-            // เพิ่มพารามิเตอร์ 'hnDetail' เพื่อให้ Apps Script รู้ว่าต้องเรียกฟังก์ชัน getDetailedPatientData
-            const url = `${https://script.google.com/macros/s/AKfycbx3g0WPy4UibEkZJWROu7kAeXz-Bt2GrKbGBzpiFlG4yxyL8CILJTi2TyLwV2j-DGwScg/exec}?hnDetail=${encodeURIComponent(lastFoundHN)}`;
+            // Add 'hnDetail' parameter to let Apps Script know to call getDetailedPatientData
+            const url = `${WEB_APP_URL}?hnDetail=${encodeURIComponent(lastFoundHN)}`; // Corrected line
 
             try {
                 const response = await fetch(url);
@@ -198,7 +198,7 @@
                 } else if (data.found) {
                     let htmlContent = `<h2>ข้อมูลละเอียดสำหรับ HN: ${data.HospitalID} (จากไฟล์ HN${data.HospitalID}.gsheet)</h2>`;
                     htmlContent += '<table>';
-                    htmlContent += '<tr><th>Hospital ID</th><th>ข้อมูลละเอียด 1</th><th>ข้อมูลละเอียด 2</th></tr>'; // เปลี่ยนหัวข้อตามชื่อคอลัมน์จริงของคุณ
+                    htmlContent += '<tr><th>Hospital ID</th><th>ข้อมูลละเอียด 1</th><th>ข้อมูลละเอียด 2</th></tr>'; // Change headers according to your actual columns
                     htmlContent += `<tr>
                                         <td>${data.HospitalID}</td>
                                         <td>${data.DetailedField1 || 'N/A'}</td> 

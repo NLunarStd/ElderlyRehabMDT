@@ -37,6 +37,7 @@
         border-radius: 5px;
         cursor: pointer;
         transition: background-color 0.3s ease;
+        margin: 5px; /* เพิ่มระยะห่างระหว่างปุ่ม */
     }
     button:hover {
         background-color: #0056b3;
@@ -69,32 +70,40 @@
         color: red;
         font-weight: bold;
     }
+    .success-message {
+        color: green;
+        font-weight: bold;
+    }
 </style>
 </head>
 <body>
 
-    <h1>ค้นหาข้อมูลผู้ป่วยด้วย Hospital ID (HN)</h1>
+    <h1>ค้นหาข้อมูลผู้ป่วย</h1>
 
     <label for="inputHN">กรอก Hospital ID (HN):</label>
     <input type="text" id="inputHN" placeholder="เช่น 000000">
-    <button onclick="fetchData()">ค้นหา</button>
+    <div>
+        <button onclick="fetchBasicPatientData()">ค้นหาข้อมูลทั่วไป</button>
+        <button onclick="fetchDetailedPatientData()" id="detailButton" style="display:none;">ดูรายละเอียด HN</button>
+    </div>
 
     <div id="output">
-        ข้อมูลผู้ป่วยจะแสดงที่นี่
+        ข้อมูลหรือสถานะการค้นหาจะแสดงที่นี่
     </div>
+
     <script>
         // *** สำคัญ: อัปเดต URL นี้ด้วย Web app URL ของคุณ ***
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwOaZwAnkUb1icLNSyauD9yA8TnVkIk2f9TwSQLAN-F26XGvQGPMlxPpHS6IbFvRGWaCw/exec';
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx3g0WPy4UibEkZJWROu7kAeXz-Bt2GrKbGBzpiFlG4yxyL8CILJTi2TyLwV2j-DGwScg/exec';
+        // เก็บ HN ที่ค้นพบในรอบล่าสุด
+        let lastFoundHN = null; 
 
         // ฟังก์ชันสำหรับแปลงวันที่เป็นรูปแบบไทย พ.ศ.
         function formatThaiDate(isoDateString) {
             if (!isoDateString) return '';
 
             const date = new Date(isoDateString);
-
-            // ตรวจสอบว่า Date object ถูกต้องหรือไม่ (ป้องกัน invalid date)
             if (isNaN(date.getTime())) {
-                return isoDateString; // ถ้าแปลงไม่ได้ ก็ส่งค่าเดิมกลับไป
+                return isoDateString; 
             }
 
             const day = date.getDate();
@@ -103,58 +112,109 @@
                 "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
             ];
             const month = monthNames[date.getMonth()];
-            const yearBuddhist = date.getFullYear() + 543; // แปลง ค.ศ. เป็น พ.ศ.
+            const yearBuddhist = date.getFullYear() + 543; 
 
             return `${day} ${month} ${yearBuddhist}`;
         }
 
-
-        async function fetchData() {
+        async function fetchBasicPatientData() {
             const inputHN = document.getElementById('inputHN').value.trim();
             const outputDiv = document.getElementById('output');
-            outputDiv.innerHTML = 'กำลังค้นหาข้อมูล...';
-            outputDiv.className = ''; // Clear any previous error classes
+            const detailButton = document.getElementById('detailButton');
+            
+            outputDiv.innerHTML = 'กำลังค้นหาข้อมูลทั่วไป...';
+            outputDiv.className = ''; 
+            detailButton.style.display = 'none'; // ซ่อนปุ่มรายละเอียดไว้ก่อน
 
             if (!inputHN) {
                 outputDiv.innerHTML = '<span class="error">กรุณากรอก Hospital ID ก่อน</span>';
+                lastFoundHN = null;
                 return;
             }
 
-            const url = `${WEB_APP_URL}?hn=${encodeURIComponent(inputHN)}`;
+            // เพิ่มพารามิเตอร์ 'hn' เพื่อให้ Apps Script รู้ว่าต้องเรียกฟังก์ชัน getPatientDataFromMainSheet
+            const url = `${https://script.google.com/macros/s/AKfycbx3g0WPy4UibEkZJWROu7kAeXz-Bt2GrKbGBzpiFlG4yxyL8CILJTi2TyLwV2j-DGwScg/exec}?hn=${encodeURIComponent(inputHN)}`;
 
             try {
                 const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                const data = await response.json(); // คาดหวัง JSON response
+                const data = await response.json(); 
 
                 if (data.success === false) {
-                    outputDiv.innerHTML = `<span class="error">เกิดข้อผิดพลาด: ${data.error}</span>`;
+                    outputDiv.innerHTML = `<span class="error">เกิดข้อผิดพลาด: ${data.error || data.message}</span>`;
+                    lastFoundHN = null;
                 } else if (data.found) {
-                    // แปลงวันเกิดให้อ่านง่าย
                     const formattedBirthDate = formatThaiDate(data.BirthDate);
 
-                    // แสดงข้อมูลในรูปแบบตาราง
-                    let htmlContent = '<h2>ข้อมูลผู้ป่วยที่พบ:</h2>';
+                    let htmlContent = '<h2>ข้อมูลผู้ป่วย (จากไฟล์หลัก):</h2>';
                     htmlContent += '<table>';
                     htmlContent += '<tr><th>Hospital ID</th><th>วันเกิด</th><th>อายุ</th><th>เพศ</th></tr>';
                     htmlContent += `<tr>
                                         <td>${data.HospitalID}</td>
-                                        <td>${formattedBirthDate}</td> <td>${data.Age}</td>
+                                        <td>${formattedBirthDate}</td>
+                                        <td>${data.Age}</td>
                                         <td>${data.Gender}</td>
                                     </tr>`;
                     htmlContent += '</table>';
                     outputDiv.innerHTML = htmlContent;
+                    lastFoundHN = data.HospitalID; // เก็บ HN ที่พบ
+                    detailButton.style.display = 'inline-block'; // แสดงปุ่มรายละเอียด
                 } else {
-                    // ไม่พบข้อมูล
                     outputDiv.innerHTML = `<span class="error">${data.message}</span>`;
+                    lastFoundHN = null;
                 }
             } catch (error) {
                 outputDiv.innerHTML = `<span class="error">เกิดข้อผิดพลาดในการเชื่อมต่อ: ${error.message}</span>`;
-                console.error('Fetch error:', error);
+                console.error('Fetch error (basic data):', error);
+                lastFoundHN = null;
+            }
+        }
+
+        async function fetchDetailedPatientData() {
+            const outputDiv = document.getElementById('output');
+            
+            if (!lastFoundHN) {
+                outputDiv.innerHTML = '<span class="error">กรุณาค้นหาข้อมูลทั่วไปก่อน เพื่อให้ได้ HN</span>';
+                return;
+            }
+
+            outputDiv.innerHTML = `กำลังดึงข้อมูลรายละเอียดสำหรับ HN: ${lastFoundHN} ...`;
+            outputDiv.className = ''; 
+
+            // เพิ่มพารามิเตอร์ 'hnDetail' เพื่อให้ Apps Script รู้ว่าต้องเรียกฟังก์ชัน getDetailedPatientData
+            const url = `${https://script.google.com/macros/s/AKfycbx3g0WPy4UibEkZJWROu7kAeXz-Bt2GrKbGBzpiFlG4yxyL8CILJTi2TyLwV2j-DGwScg/exec}?hnDetail=${encodeURIComponent(lastFoundHN)}`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json(); 
+
+                if (data.success === false) {
+                    outputDiv.innerHTML = `<span class="error">เกิดข้อผิดพลาด: ${data.error || data.message}</span>`;
+                } else if (data.found) {
+                    let htmlContent = `<h2>ข้อมูลละเอียดสำหรับ HN: ${data.HospitalID} (จากไฟล์ HN${data.HospitalID}.gsheet)</h2>`;
+                    htmlContent += '<table>';
+                    htmlContent += '<tr><th>Hospital ID</th><th>ข้อมูลละเอียด 1</th><th>ข้อมูลละเอียด 2</th></tr>'; // เปลี่ยนหัวข้อตามชื่อคอลัมน์จริงของคุณ
+                    htmlContent += `<tr>
+                                        <td>${data.HospitalID}</td>
+                                        <td>${data.DetailedField1 || 'N/A'}</td> 
+                                        <td>${data.DetailedField2 || 'N/A'}</td>
+                                    </tr>`;
+                    htmlContent += '</table>';
+                    outputDiv.innerHTML = htmlContent;
+                } else {
+                    outputDiv.innerHTML = `<span class="error">${data.message}</span>`;
+                }
+            } catch (error) {
+                outputDiv.innerHTML = `<span class="error">เกิดข้อผิดพลาดในการเชื่อมต่อเพื่อดึงข้อมูลละเอียด: ${error.message}</span>`;
+                console.error('Fetch error (detailed data):', error);
             }
         }
     </script>
+
 </body>
 </html>

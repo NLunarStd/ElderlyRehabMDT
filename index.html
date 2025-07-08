@@ -1,91 +1,138 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Apps Script Request Test</title>
+<title>Patient Data Search</title>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    margin: 0;
-    background-color: #f0f0f0;
-  }
-  button {
-    padding: 15px 30px;
-    font-size: 20px;
-    cursor: pointer;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    transition: background-color 0.3s ease;
-  }
-  button:hover {
-    background-color: #45a049;
-  }
-  #response {
-    margin-top: 20px;
-    font-size: 22px;
-    color: #333;
-    padding: 20px;
-    border: 1px solid #ccc;
-    background-color: #fff;
-    border-radius: 8px;
-    min-width: 300px;
-    text-align: center;
-  }
-  input[type="text"] {
-    padding: 10px;
-    font-size: 18px;
-    margin-bottom: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    width: 250px;
-  }
+    body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+    }
+    h1 {
+        color: #333;
+    }
+    label {
+        font-size: 1.2em;
+        margin-bottom: 10px;
+    }
+    input[type="text"] {
+        padding: 10px;
+        font-size: 1em;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        width: 250px;
+    }
+    button {
+        padding: 10px 20px;
+        font-size: 1em;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    button:hover {
+        background-color: #0056b3;
+    }
+    #output {
+        margin-top: 25px;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background-color: #fff;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        min-width: 400px;
+        text-align: center;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+    }
+    th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+    }
+    .error {
+        color: red;
+        font-weight: bold;
+    }
 </style>
 </head>
 <body>
 
-  <h1>ทดสอบเรียก Google Apps Script</h1>
+    <h1>ค้นหาข้อมูลผู้ป่วยด้วย Hospital ID (HN)</h1>
 
-  <input type="text" id="nameInput" placeholder="ใส่ชื่อของคุณ (optional)">
-  <button onclick="sendRequest()">ส่ง Request</button>
+    <label for="inputHN">กรอก Hospital ID (HN):</label>
+    <input type="text" id="inputHN" placeholder="เช่น 000000">
+    <button onclick="fetchData()">ค้นหา</button>
 
-  <div id="response">
-    ผลลัพธ์จาก Apps Script จะแสดงที่นี่
-  </div>
+    <div id="output">
+        ข้อมูลผู้ป่วยจะแสดงที่นี่
+    </div>
 
-  <script>
-    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxpjOR_sMv1jda4YiqAaNZAv4WTNrz36VRcaT-GbmA5rtfE47mgHkGPO1vFAUAcKV8Cww/exec'; 
+    <script>
 
-    async function sendRequest() {
-      const responseDiv = document.getElementById('response');
-      responseDiv.textContent = 'กำลังส่งคำขอ...';
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwGDxlKcR5JynQY15QZ2wyUBELZZRDQyMqYAmrsRD0fZLFZa-7Pa_9Zcz7DNPrp0AGmVQ/exec'; 
 
-      const name = document.getElementById('nameInput').value;
-      let url = WEB_APP_URL;
+        async function fetchData() {
+            const inputHN = document.getElementById('inputHN').value.trim();
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = 'กำลังค้นหาข้อมูล...';
+            outputDiv.className = ''; // Clear any previous error classes
 
-      // ถ้ามีชื่อ ก็เพิ่มพารามิเตอร์ 'name' เข้าไปใน URL
-      if (name) {
-        url += `?name=${encodeURIComponent(name)}`;
-      }
+            if (!inputHN) {
+                outputDiv.innerHTML = '<span class="error">กรุณากรอก Hospital ID ก่อน</span>';
+                return;
+            }
 
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+            // สร้าง URL พร้อมพารามิเตอร์ hn
+            const url = `${WEB_APP_URL}?hn=${encodeURIComponent(inputHN)}`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json(); // คาดหวัง JSON response
+
+                if (data.success === false) {
+                    outputDiv.innerHTML = `<span class="error">เกิดข้อผิดพลาด: ${data.error}</span>`;
+                } else if (data.found) {
+                    // แสดงข้อมูลในรูปแบบตาราง
+                    let htmlContent = '<h2>ข้อมูลผู้ป่วยที่พบ:</h2>';
+                    htmlContent += '<table>';
+                    htmlContent += '<tr><th>Hospital ID</th><th>วันเกิด</th><th>อายุ</th><th>เพศ</th></tr>';
+                    htmlContent += `<tr>
+                                        <td>${data.HospitalID}</td>
+                                        <td>${data.BirthDate}</td>
+                                        <td>${data.Age}</td>
+                                        <td>${data.Gender}</td>
+                                    </tr>`;
+                    htmlContent += '</table>';
+                    outputDiv.innerHTML = htmlContent;
+                } else {
+                    // ไม่พบข้อมูล
+                    outputDiv.innerHTML = `<span class="error">${data.message}</span>`;
+                }
+            } catch (error) {
+                outputDiv.innerHTML = `<span class="error">เกิดข้อผิดพลาดในการเชื่อมต่อ: ${error.message}</span>`;
+                console.error('Fetch error:', error);
+            }
         }
-        const data = await response.text(); // อ่านผลลัพธ์เป็นข้อความธรรมดา
-        responseDiv.textContent = data;
-      } catch (error) {
-        responseDiv.textContent = `เกิดข้อผิดพลาด: ${error.message}`;
-        console.error('Fetch error:', error);
-      }
-    }
-  </script>
+    </script>
 
 </body>
 </html>

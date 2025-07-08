@@ -82,10 +82,32 @@
     <div id="output">
         ข้อมูลผู้ป่วยจะแสดงที่นี่
     </div>
-
     <script>
+        // *** สำคัญ: อัปเดต URL นี้ด้วย Web app URL ของคุณ ***
+        const WEB_APP_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE'; // เช่น https://script.google.com/macros/s/AKfycb.../exec
 
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwOaZwAnkUb1icLNSyauD9yA8TnVkIk2f9TwSQLAN-F26XGvQGPMlxPpHS6IbFvRGWaCw/exec'; 
+        // ฟังก์ชันสำหรับแปลงวันที่เป็นรูปแบบไทย พ.ศ.
+        function formatThaiDate(isoDateString) {
+            if (!isoDateString) return '';
+
+            const date = new Date(isoDateString);
+
+            // ตรวจสอบว่า Date object ถูกต้องหรือไม่ (ป้องกัน invalid date)
+            if (isNaN(date.getTime())) {
+                return isoDateString; // ถ้าแปลงไม่ได้ ก็ส่งค่าเดิมกลับไป
+            }
+
+            const day = date.getDate();
+            const monthNames = [
+                "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+                "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+            ];
+            const month = monthNames[date.getMonth()];
+            const yearBuddhist = date.getFullYear() + 543; // แปลง ค.ศ. เป็น พ.ศ.
+
+            return `${day} ${month} ${yearBuddhist}`;
+        }
+
 
         async function fetchData() {
             const inputHN = document.getElementById('inputHN').value.trim();
@@ -98,7 +120,6 @@
                 return;
             }
 
-            // สร้าง URL พร้อมพารามิเตอร์ hn
             const url = `${WEB_APP_URL}?hn=${encodeURIComponent(inputHN)}`;
 
             try {
@@ -111,14 +132,16 @@
                 if (data.success === false) {
                     outputDiv.innerHTML = `<span class="error">เกิดข้อผิดพลาด: ${data.error}</span>`;
                 } else if (data.found) {
+                    // แปลงวันเกิดให้อ่านง่าย
+                    const formattedBirthDate = formatThaiDate(data.BirthDate);
+
                     // แสดงข้อมูลในรูปแบบตาราง
                     let htmlContent = '<h2>ข้อมูลผู้ป่วยที่พบ:</h2>';
                     htmlContent += '<table>';
                     htmlContent += '<tr><th>Hospital ID</th><th>วันเกิด</th><th>อายุ</th><th>เพศ</th></tr>';
                     htmlContent += `<tr>
                                         <td>${data.HospitalID}</td>
-                                        <td>${data.BirthDate}</td>
-                                        <td>${data.Age}</td>
+                                        <td>${formattedBirthDate}</td> <td>${data.Age}</td>
                                         <td>${data.Gender}</td>
                                     </tr>`;
                     htmlContent += '</table>';
@@ -133,6 +156,5 @@
             }
         }
     </script>
-
 </body>
 </html>

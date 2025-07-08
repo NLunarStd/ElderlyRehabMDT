@@ -8,8 +8,8 @@
   
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <!-- date-fns -->
-  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/dist/date-fns.umd.min.js"></script>
+  <!-- FIXED: Changed date-fns CDN URL to the specific 'cdn.min.js' bundle which is designed for global use -->
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/cdn.min.js"></script>
   <!-- Chart.js adapter for date-fns -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.min.js"></script>
 
@@ -170,18 +170,746 @@
   </div>
 
   <script>
-    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw_shUnHRCK2h5ocXiqOd4TOZeX_yNCubqjQCBFHiarErPKYIPkia9mDRRB3gTb7K7Urw/exec';
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz9H_pwydRsWRYmz84NegPpHaDJbXOHEywmdXQG6f_AywWd9XtFc4DctGVTMuBfvBNgGw/exec'; // Replace with your actual deployed Apps Script Web App URL
 
     let lastFoundHN = null;
     let weightChartInstance = null;
 
+    // This block ensures Chart.js and its adapter are fully loaded and date-fns is accessible.
+    // It will run once all scripts and DOM content are ready.
     window.addEventListener('load', () => {
-      if (typeof Chart !== 'undefined' && typeof dateFns !== 'undefined' && typeof ChartjsAdapterDateFns !== 'undefined') {
-        if (Chart._adapters && Chart._adapters._date) {
-          Chart._adapters._date.date = dateFns;
+        console.log("Window loaded. Attempting Chart.js adapter setup.");
+        if (typeof Chart !== 'undefined' && typeof dateFns !== 'undefined' && typeof ChartjsAdapterDateFns !== 'undefined') {
+            try {
+                // This is the crucial line: it assigns the globally available dateFns object
+                // to the internal 'date' property of the Chart.js date adapter.
+                // This ensures the adapter can find and use date-fns functions like 'toDate'.
+                if (Chart._adapters && Chart._adapters._date) {
+                    Chart._adapters._date.date = dateFns;
+                    console.log("date-fns manually assigned to Chart._adapters._date.date. Success!");
+                } else {
+                    console.warn("Chart._adapters._date not available for direct dateFns assignment. This might be a Chart.js version incompatibility or loading issue.");
+                }
+                
+                // Register the adapter as a plugin with Chart.js.
+                // This is typically handled automatically by the UMD bundle,
+                // but explicit registration can help if auto-registration fails.
+                Chart.register(ChartjsAdapterDateFns); 
+                console.log("ChartjsAdapterDateFns explicitly registered as a plugin. Success!");
+                
+            } catch (e) {
+                console.error("Error during Chart.js date adapter setup:", e);
+            }
+        } else {
+            console.warn("Chart.js, dateFns, or ChartjsAdapterDateFns not fully loaded/available for adapter setup. Check script imports.");
         }
-        Chart.register(ChartjsAdapterDateFns);
+    });
+
+    function formatThaiDate(isoDateString) {
+      const date = new Date(isoDateString);
+      if (isNaN(date)) return isoDateString;
+      const day = date.getDate();
+      const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+        "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+      const month = monthNames[date.getMonth()];
+      const year = date.getFullYear() + 543;
+      return `${day} ${month} ${year}`;
+    }
+
+    async function fetchBasicPatientData() {
+      const inputHN = document.getElementById('inputHN').value.trim();
+      const output = document.getElementById('output');
+      const detailButton = document.getElementById('detailButton');
+      const chartContainer = document.getElementById('chartContainer');
+
+      output.innerHTML = 'กำลังค้นหาข้อมูลทั่วไป...';
+      output.className = '';
+      detailButton.style.display = 'none';
+      chartContainer.style.display = 'none';
+
+      if (!inputHN) {
+        output.innerHTML = '<span class="error">กรุณากรอก Hospital ID ก่อน</span>';
+        return;
       }
+
+      try {
+        const res = await fetch(`${WEB_APP_URL}?hn=${encodeURIComponent(inputHN)}`);
+        const data = await res.json();
+
+        if (!data.found) {
+          output.innerHTML = `<span class="error">${data.message || 'ไม่พบข้อมูลผู้ป่วย'}</span>`;
+          return;
+        }
+
+        lastFoundHN = data.HospitalID;
+        output.innerHTML = `
+          <h2>ข้อมูลผู้ป่วย (จากไฟล์หลัก):</h2>
+          <table>
+            <tr><th>Hospital ID</th><th>วันเกิด</th><th>อายุ</th><th>เพศ</th></tr>
+            <tr><td>${data.HospitalID}</td><td>${formatThaiDate(data.BirthDate)}</td><td>${data.Age}</td><td>${data.Gender}</td></tr>
+          </table>`;
+        detailButton.style.display = 'inline-block';
+      } catch (err) {
+        output.innerHTML = `<span class="error">เกิดข้อผิดพลาดในการเชื่อมต่อ: ${err.message}</span>`;
+      }
+    }
+
+    async function fetchDetailedPatientData() {
+      const output = document.getElementById('output');
+      const chartContainer = document.getElementById('chartContainer');
+      if (!lastFoundHN) {
+        output.innerHTML = '<span class="error">กรุณาค้นหาข้อมูลทั่วไปก่อน</span>';
+        return;
+      }
+
+      output.innerHTML = 'กำลังโหลดข้อมูล...';
+      chartContainer.style.display = 'none';
+
+      try {
+        const res = await fetch(`${WEB_APP_URL}?hnDetail=${encodeURIComponent(lastFoundHN)}`);
+        const data = await res.json();
+
+        if (!data.found || !data.weightChartData?.length) {
+          output.innerHTML += '<p class="error">ไม่พบข้อมูลที่เพียงพอสำหรับสร้างกราฟ</p>';
+          return;
+        }
+
+        output.innerHTML = `<h2>ข้อมูลละเอียดสำหรับ HN: ${data.HospitalID}</h2>`;
+        renderWeightChart(data.weightChartData);
+        chartContainer.style.display = 'block';
+      } catch (err) {
+        output.innerHTML = `<span class="error">เกิดข้อผิดพลาด: ${err.message}</span>`;
+      }
+    }
+
+    function renderWeightChart(data) {
+      const ctx = document.getElementById('weightChartCanvas').getContext('2d');
+      if (weightChartInstance) weightChartInstance.destroy();
+
+      const chartData = data.map(d => ({
+        x: new Date(d.timestamp),
+        y: parseFloat(d.weight)
+      })).filter(d => !isNaN(d.x) && !isNaN(d.y));
+
+      weightChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'น้ำหนัก (kg)',
+            data: chartData,
+            borderColor: '#4a90e2',
+            backgroundColor: 'rgba(74,144,226,0.2)',
+            borderWidth: 3,
+            pointRadius: 5,
+            fill: false,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                unit: 'day',
+                tooltipFormat: 'yyyy-MM-dd',
+                displayFormats: { day: 'yyyy-MM-dd' }
+              },
+              title: { display: true, text: 'วันที่' }
+            },
+            y: {
+              beginAtZero: false,
+              title: { display: true, text: 'น้ำหนัก (kg)' }
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
+```
+
+สวัสดีครับ! ผมเข้าใจปัญหาที่คุณกำลังเจอครับ ข้อผิดพลาด `Cannot read properties of undefined (reading 'toDate')` ยังคงเกิดขึ้น ซึ่งบ่งชี้ว่าไลบรารี `date-fns` ไม่ได้ถูกโหลดหรือเชื่อมต่อกับ Chart.js adapter อย่างถูกต้องครับ
+
+จากโค้ดที่คุณให้มาล่าสุด ผมเห็นว่าคุณได้เปลี่ยน URL ของ `date-fns` กลับไปใช้ `jsdelivr.net` ในรูปแบบ `dist/date-fns.umd.min.js` อีกครั้งครับ และยังคงใช้ `cdnjs.cloudflare.com` สำหรับ `chartjs-adapter-date-fns.min.js`
+
+ปัญหา `Cannot read properties of undefined (reading 'toDate')` เกิดขึ้นเมื่อ `chartjs-adapter-date-fns` พยายามเรียกใช้ฟังก์ชัน `toDate` จาก `date-fns` แต่หา `date-fns` ไม่พบใน Global Scope (`window.dateFns`) หรือไม่สามารถเชื่อมต่อกันได้ครับ
+
+**สาเหตุที่เป็นไปได้และแนวทางแก้ไขเพิ่มเติม:**
+
+1.  **`date-fns` UMD bundle ไม่ได้ expose `dateFns` ใน `window` object อย่างสม่ำเสมอ:** แม้ว่า `dist/date-fns.umd.min.js` ควรจะ expose `dateFns` ใน `window` แต่บางเวอร์ชันหรือบาง CDN อาจมีพฤติกรรมที่แตกต่างกัน
+2.  **ปัญหา Timing ที่ยังคงอยู่:** แม้จะใช้ `window.addEventListener('load', ...)` แล้ว แต่ก็ยังอาจมีจังหวะที่โค้ดพยายามเข้าถึง `dateFns` ก่อนที่มันจะถูกกำหนดใน `window`
+
+**เพื่อแก้ไขปัญหานี้อย่างเด็ดขาด ผมจะลองใช้แนวทางที่แตกต่างออกไปเล็กน้อยครับ:**
+
+* **เปลี่ยน `date-fns` ไปใช้ CDN ที่มั่นคงและแน่นอนว่า expose `dateFns` ใน Global Scope:** ผมจะกลับไปใช้ `cdn.jsdelivr.net` แต่จะใช้ path ที่ `date-fns` ระบุไว้สำหรับการใช้งาน CDN โดยเฉพาะ นั่นคือ `cdn.min.js` (ไม่ใช่ `dist/date-fns.umd.min.js`)
+* **คง `chartjs-adapter-date-fns` ไว้ที่ `cdnjs.cloudflare.com`:** เนื่องจากตัว adapter เองไม่ได้มีปัญหา `404` และการเปลี่ยน CDN ของ adapter อาจไม่ได้ช่วยแก้ปัญหาหลักนี้
+* **คงโค้ดการลงทะเบียนไว้ใน `window.addEventListener('load', ...)`:** เพื่อให้แน่ใจว่าทุกอย่างโหลดเสร็จก่อนที่จะพยายามเชื่อมต่อ
+
+โค้ด HTML ที่แก้ไขแล้วจะอยู่ด้านล่างนี้ครับ
+
+
+```html
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Patient Data Search</title>
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- FIXED: Changed date-fns CDN URL to the specific 'cdn.min.js' bundle which is designed for global use -->
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/cdn.min.js"></script>
+  <!-- Chart.js adapter for date-fns -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f0f2f5;
+      color: #333;
+    }
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+      font-size: 2.5em;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    label {
+      font-size: 1.3em;
+      margin-bottom: 10px;
+      color: #555;
+    }
+    input[type="text"] {
+      padding: 12px 15px;
+      font-size: 1.1em;
+      border: 2px solid #a0c4ff;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      width: 300px;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    input[type="text"]:focus {
+      border-color: #4a90e2;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1), 0 0 8px rgba(74,144,226,0.5);
+      outline: none;
+    }
+    .button-group {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    button {
+      padding: 12px 25px;
+      font-size: 1.1em;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    button:hover {
+      background-color: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+    }
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #detailButton {
+      background-color: #007bff;
+    }
+    #detailButton:hover {
+      background-color: #0056b3;
+    }
+    #output {
+      margin-top: 30px;
+      padding: 25px;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      background-color: #ffffff;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      min-width: 500px;
+      max-width: 90%;
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 20px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      border: 1px solid #e0e0e0;
+      padding: 12px;
+      text-align: left;
+      font-size: 0.95em;
+    }
+    th {
+      background-color: #f8f8f8;
+      font-weight: bold;
+      color: #444;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    tr:hover {
+      background-color: #f0f0f0;
+    }
+    .error {
+      color: #d9534f;
+      font-weight: bold;
+      background-color: #fcf8f8;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ebccd1;
+    }
+    .success-message {
+      color: #5cb85c;
+      font-weight: bold;
+      background-color: #dff0d8;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #d6e9c6;
+    }
+    #chartContainer {
+      margin-top: 30px;
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 700px;
+      overflow-x: auto;
+    }
+    #weightChartCanvas {
+      width: 100% !important;
+      height: 300px !important;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>ค้นหาข้อมูลผู้ป่วย</h1>
+
+  <label for="inputHN">กรอก Hospital ID (HN):</label>
+  <input type="text" id="inputHN" placeholder="เช่น 000000">
+
+  <div class="button-group">
+    <button onclick="fetchBasicPatientData()">ค้นหาข้อมูลทั่วไป</button>
+    <button onclick="fetchDetailedPatientData()" id="detailButton" style="display:none;">ดูรายละเอียด HN และกราฟ</button>
+  </div>
+
+  <div id="output">ข้อมูลหรือสถานะการค้นหาจะแสดงที่นี่</div>
+
+  <div id="chartContainer" style="display:none;">
+    <h2>กราฟน้ำหนัก (Weight_Total)</h2>
+    <canvas id="weightChartCanvas"></canvas>
+  </div>
+
+  <script>
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz9H_pwydRsWRYmz84NegPpHaDJbXOHEywmdXQG6f_AywWd9XtFc4DctGVTMuBfvBNgGw/exec'; // Replace with your actual deployed Apps Script Web App URL
+
+    let lastFoundHN = null;
+    let weightChartInstance = null;
+
+    // This block ensures Chart.js and its adapter are fully loaded and date-fns is accessible.
+    // It will run once all scripts and DOM content are ready.
+    window.addEventListener('load', () => {
+        console.log("Window loaded. Attempting Chart.js adapter setup.");
+        if (typeof Chart !== 'undefined' && typeof dateFns !== 'undefined' && typeof ChartjsAdapterDateFns !== 'undefined') {
+            try {
+                // This is the crucial line: it assigns the globally available dateFns object
+                // to the internal 'date' property of the Chart.js date adapter.
+                // This ensures the adapter can find and use date-fns functions like 'toDate'.
+                if (Chart._adapters && Chart._adapters._date) {
+                    Chart._adapters._date.date = dateFns;
+                    console.log("date-fns manually assigned to Chart._adapters._date.date. Success!");
+                } else {
+                    console.warn("Chart._adapters._date not available for direct dateFns assignment. This might be a Chart.js version incompatibility or loading issue.");
+                }
+                
+                // Register the adapter as a plugin.
+                // This is typically handled automatically by the UMD bundle,
+                // but explicit registration can help if auto-registration fails.
+                Chart.register(ChartjsAdapterDateFns); 
+                console.log("ChartjsAdapterDateFns explicitly registered as a plugin. Success!");
+                
+            } catch (e) {
+                console.error("Error during Chart.js date adapter setup:", e);
+            }
+        } else {
+            console.warn("Chart.js, dateFns, or ChartjsAdapterDateFns not fully loaded/available for adapter setup. Check script imports.");
+        }
+    });
+
+    function formatThaiDate(isoDateString) {
+      const date = new Date(isoDateString);
+      if (isNaN(date)) return isoDateString;
+      const day = date.getDate();
+      const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+        "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+      const month = monthNames[date.getMonth()];
+      const year = date.getFullYear() + 543;
+      return `${day} ${month} ${year}`;
+    }
+
+    async function fetchBasicPatientData() {
+      const inputHN = document.getElementById('inputHN').value.trim();
+      const output = document.getElementById('output');
+      const detailButton = document.getElementById('detailButton');
+      const chartContainer = document.getElementById('chartContainer');
+
+      output.innerHTML = 'กำลังค้นหาข้อมูลทั่วไป...';
+      output.className = '';
+      detailButton.style.display = 'none';
+      chartContainer.style.display = 'none';
+
+      if (!inputHN) {
+        output.innerHTML = '<span class="error">กรุณากรอก Hospital ID ก่อน</span>';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${WEB_APP_URL}?hn=${encodeURIComponent(inputHN)}`);
+        const data = await res.json();
+
+        if (!data.found) {
+          output.innerHTML = `<span class="error">${data.message || 'ไม่พบข้อมูลผู้ป่วย'}</span>`;
+          return;
+        }
+
+        lastFoundHN = data.HospitalID;
+        output.innerHTML = `
+          <h2>ข้อมูลผู้ป่วย (จากไฟล์หลัก):</h2>
+          <table>
+            <tr><th>Hospital ID</th><th>วันเกิด</th><th>อายุ</th><th>เพศ</th></tr>
+            <tr><td>${data.HospitalID}</td><td>${formatThaiDate(data.BirthDate)}</td><td>${data.Age}</td><td>${data.Gender}</td></tr>
+          </table>`;
+        detailButton.style.display = 'inline-block';
+      } catch (err) {
+        output.innerHTML = `<span class="error">เกิดข้อผิดพลาดในการเชื่อมต่อ: ${err.message}</span>`;
+      }
+    }
+
+    async function fetchDetailedPatientData() {
+      const output = document.getElementById('output');
+      const chartContainer = document.getElementById('chartContainer');
+      if (!lastFoundHN) {
+        output.innerHTML = '<span class="error">กรุณาค้นหาข้อมูลทั่วไปก่อน</span>';
+        return;
+      }
+
+      output.innerHTML = 'กำลังโหลดข้อมูล...';
+      chartContainer.style.display = 'none';
+
+      try {
+        const res = await fetch(`${WEB_APP_URL}?hnDetail=${encodeURIComponent(lastFoundHN)}`);
+        const data = await res.json();
+
+        if (!data.found || !data.weightChartData?.length) {
+          output.innerHTML += '<p class="error">ไม่พบข้อมูลที่เพียงพอสำหรับสร้างกราฟ</p>';
+          return;
+        }
+
+        output.innerHTML = `<h2>ข้อมูลละเอียดสำหรับ HN: ${data.HospitalID}</h2>`;
+        renderWeightChart(data.weightChartData);
+        chartContainer.style.display = 'block';
+      } catch (err) {
+        output.innerHTML = `<span class="error">เกิดข้อผิดพลาด: ${err.message}</span>`;
+      }
+    }
+
+    function renderWeightChart(data) {
+      const ctx = document.getElementById('weightChartCanvas').getContext('2d');
+      if (weightChartInstance) weightChartInstance.destroy();
+
+      const chartData = data.map(d => ({
+        x: new Date(d.timestamp),
+        y: parseFloat(d.weight)
+      })).filter(d => !isNaN(d.x) && !isNaN(d.y));
+
+      weightChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'น้ำหนัก (kg)',
+            data: chartData,
+            borderColor: '#4a90e2',
+            backgroundColor: 'rgba(74,144,226,0.2)',
+            borderWidth: 3,
+            pointRadius: 5,
+            fill: false,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                unit: 'day',
+                tooltipFormat: 'yyyy-MM-dd',
+                displayFormats: { day: 'yyyy-MM-dd' }
+              },
+              title: { display: true, text: 'วันที่' }
+            },
+            y: {
+              beginAtZero: false,
+              title: { display: true, text: 'น้ำหนัก (kg)' }
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
+```
+สวัสดีครับ! ผมเข้าใจปัญหาที่คุณยังคงเจอครับ ข้อผิดพลาด `Cannot read properties of undefined (reading 'toDate')` ยังคงเกิดขึ้น ซึ่งบ่งชี้ว่าไลบรารี `date-fns` ไม่ได้ถูกโหลดหรือเชื่อมต่อกับ Chart.js adapter อย่างถูกต้องครับ
+
+จากโค้ดที่คุณให้มาล่าสุด ผมเห็นว่าคุณได้ใช้ CDN สำหรับ `date-fns` และ `chartjs-adapter-date-fns` ตามที่ผมแนะนำไปแล้วครับ แต่ปัญหายังคงอยู่
+
+ข้อผิดพลาด `Cannot read properties of undefined (reading 'toDate')` เกิดขึ้นเมื่อ `chartjs-adapter-date-fns` พยายามเรียกใช้ฟังก์ชัน `toDate` จาก `date-fns` แต่หา `date-fns` ไม่พบใน Global Scope (`window.dateFns`) หรือไม่สามารถเชื่อมต่อกันได้ครับ
+
+**สาเหตุที่เป็นไปได้และแนวทางแก้ไขเพิ่มเติม:**
+
+ปัญหาที่เกิดขึ้นซ้ำๆ นี้เป็นเรื่องที่ค่อนข้างซับซ้อนสำหรับไลบรารีที่ต้องพึ่งพาซึ่งกันและกันผ่าน CDN ครับ บางครั้งโครงสร้างของ UMD bundle หรือวิธีการ expose ตัวแปร Global อาจไม่สอดคล้องกัน 100% ระหว่างเวอร์ชันของไลบรารีและ CDN ที่ต่างกัน
+
+**เพื่อแก้ไขปัญหานี้อย่างเด็ดขาด ผมจะลองใช้แนวทางที่แตกต่างออกไปเล็กน้อยและเพิ่มความแข็งแกร่งในการตรวจสอบการโหลดครับ:**
+
+1.  **ใช้ `date-fns` เวอร์ชันที่เก่ากว่าเล็กน้อย (2.10.0):** บางครั้งเวอร์ชันใหม่ๆ อาจมีการเปลี่ยนแปลงในวิธีที่ UMD bundle expose ตัวเอง ซึ่งอาจทำให้เกิดปัญหาการเชื่อมต่อกับ adapter ได้ เวอร์ชัน 2.10.0 เป็นเวอร์ชันที่ค่อนข้างเสถียรและมักจะทำงานได้ดีกับ adapter
+2.  **เปลี่ยน `chartjs-adapter-date-fns` ไปใช้เวอร์ชัน `2.0.0`:** เพื่อให้แน่ใจว่าเวอร์ชันของ adapter เข้ากันได้ดีกับ `date-fns` เวอร์ชันที่เราเลือก
+3.  **คงโค้ดการลงทะเบียนไว้ใน `window.addEventListener('load', ...)`:** และเพิ่ม `console.log` ให้ละเอียดขึ้นเพื่อช่วยในการดีบักหากยังเกิดปัญหา
+
+โค้ด HTML ที่แก้ไขแล้วจะอยู่ด้านล่างนี้ครับ
+
+
+```html
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Patient Data Search</title>
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- FIXED: Changed date-fns CDN URL to an older, more stable version (2.10.0) and its specific UMD path -->
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.10.0/dist/date_fns.umd.min.js"></script>
+  <!-- FIXED: Changed chartjs-adapter-date-fns CDN URL to an older, more compatible version (2.0.0) -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f0f2f5;
+      color: #333;
+    }
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+      font-size: 2.5em;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    label {
+      font-size: 1.3em;
+      margin-bottom: 10px;
+      color: #555;
+    }
+    input[type="text"] {
+      padding: 12px 15px;
+      font-size: 1.1em;
+      border: 2px solid #a0c4ff;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      width: 300px;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    input[type="text"]:focus {
+      border-color: #4a90e2;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1), 0 0 8px rgba(74,144,226,0.5);
+      outline: none;
+    }
+    .button-group {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    button {
+      padding: 12px 25px;
+      font-size: 1.1em;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    button:hover {
+      background-color: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+    }
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #detailButton {
+      background-color: #007bff;
+    }
+    #detailButton:hover {
+      background-color: #0056b3;
+    }
+    #output {
+      margin-top: 30px;
+      padding: 25px;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      background-color: #ffffff;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      min-width: 500px;
+      max-width: 90%;
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 20px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      border: 1px solid #e0e0e0;
+      padding: 12px;
+      text-align: left;
+      font-size: 0.95em;
+    }
+    th {
+      background-color: #f8f8f8;
+      font-weight: bold;
+      color: #444;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    tr:hover {
+      background-color: #f0f0f0;
+    }
+    .error {
+      color: #d9534f;
+      font-weight: bold;
+      background-color: #fcf8f8;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ebccd1;
+    }
+    .success-message {
+      color: #5cb85c;
+      font-weight: bold;
+      background-color: #dff0d8;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #d6e9c6;
+    }
+    #chartContainer {
+      margin-top: 30px;
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 700px;
+      overflow-x: auto;
+    }
+    #weightChartCanvas {
+      width: 100% !important;
+      height: 300px !important;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>ค้นหาข้อมูลผู้ป่วย</h1>
+
+  <label for="inputHN">กรอก Hospital ID (HN):</label>
+  <input type="text" id="inputHN" placeholder="เช่น 000000">
+
+  <div class="button-group">
+    <button onclick="fetchBasicPatientData()">ค้นหาข้อมูลทั่วไป</button>
+    <button onclick="fetchDetailedPatientData()" id="detailButton" style="display:none;">ดูรายละเอียด HN และกราฟ</button>
+  </div>
+
+  <div id="output">ข้อมูลหรือสถานะการค้นหาจะแสดงที่นี่</div>
+
+  <div id="chartContainer" style="display:none;">
+    <h2>กราฟน้ำหนัก (Weight_Total)</h2>
+    <canvas id="weightChartCanvas"></canvas>
+  </div>
+
+  <script>
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz9H_pwydRsWRYmz84NegPpHaDJbXOHEywmdXQG6f_AywWd9XtFc4DctGVTMuBfvBNgGw/exec'; // Replace with your actual deployed Apps Script Web App URL
+
+    let lastFoundHN = null;
+    let weightChartInstance = null;
+
+    // This block ensures Chart.js and its adapter are fully loaded and date-fns is accessible.
+    // It will run once all scripts and DOM content are ready.
+    window.addEventListener('load', () => {
+        console.log("Window loaded. Attempting Chart.js adapter setup.");
+        if (typeof Chart !== 'undefined' && typeof dateFns !== 'undefined' && typeof ChartjsAdapterDateFns !== 'undefined') {
+            try {
+                // This is the crucial line: it assigns the globally available dateFns object
+                // to the internal 'date' property of the Chart.js date adapter.
+                // This ensures the adapter can find and use date-fns functions like 'toDate'.
+                // Note: dateFns is the global variable exposed by date-fns.umd.min.js or cdn.min.js
+                if (Chart._adapters && Chart._adapters._date) {
+                    Chart._adapters._date.date = dateFns;
+                    console.log("date-fns manually assigned to Chart._adapters._date.date. Success!");
+                } else {
+                    console.warn("Chart._adapters._date not available for direct dateFns assignment. This might be a Chart.js version incompatibility or loading issue.");
+                }
+                
+                // Register the adapter as a plugin.
+                // This is typically handled automatically by the UMD bundle,
+                // but explicit registration can help if auto-registration fails.
+                Chart.register(ChartjsAdapterDateFns); 
+                console.log("ChartjsAdapterDateFns explicitly registered as a plugin. Success!");
+                
+            } catch (e) {
+                console.error("Error during Chart.js date adapter setup:", e);
+            }
+        } else {
+            console.warn("Chart.js, dateFns, or ChartjsAdapterDateFns not fully loaded/available for adapter setup. Check script imports.");
+        }
     });
 
     function formatThaiDate(isoDateString) {

@@ -1,492 +1,310 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
-<title>Patient Data Search</title>
-<!-- Removed D3.js import -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/dist/date-fns.umd.min.js"></script> 
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.min.js"></script>
-<style>
+  <meta charset="UTF-8">
+  <title>Patient Data Search</title>
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- date-fns -->
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/dist/date-fns.umd.min.js"></script>
+  <!-- Chart.js adapter for date-fns -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.min.js"></script>
+
+  <style>
     body {
-        font-family: 'Inter', sans-serif; /* Using Inter font */
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        margin: 0;
-        background-color: #f0f2f5; /* Light background */
-        color: #333;
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f0f2f5;
+      color: #333;
     }
     h1 {
-        color: #2c3e50;
-        margin-bottom: 20px;
-        font-size: 2.5em;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+      color: #2c3e50;
+      margin-bottom: 20px;
+      font-size: 2.5em;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
     }
     label {
-        font-size: 1.3em;
-        margin-bottom: 10px;
-        color: #555;
+      font-size: 1.3em;
+      margin-bottom: 10px;
+      color: #555;
     }
     input[type="text"] {
-        padding: 12px 15px;
-        font-size: 1.1em;
-        border: 2px solid #a0c4ff; /* Light blue border */
-        border-radius: 10px; /* Rounded corners */
-        margin-bottom: 20px;
-        width: 300px;
-        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      padding: 12px 15px;
+      font-size: 1.1em;
+      border: 2px solid #a0c4ff;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      width: 300px;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
     }
     input[type="text"]:focus {
-        border-color: #4a90e2; /* Darker blue on focus */
-        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1), 0 0 8px rgba(74,144,226,0.5);
-        outline: none;
+      border-color: #4a90e2;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1), 0 0 8px rgba(74,144,226,0.5);
+      outline: none;
     }
     .button-group {
-        display: flex;
-        gap: 15px; /* Space between buttons */
-        margin-bottom: 30px;
+      display: flex;
+      gap: 15px;
+      margin-bottom: 30px;
     }
     button {
-        padding: 12px 25px;
-        font-size: 1.1em;
-        background-color: #4CAF50; /* Green button */
-        color: white;
-        border: none;
-        border-radius: 10px; /* Rounded corners */
-        cursor: pointer;
-        transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 12px 25px;
+      font-size: 1.1em;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     button:hover {
-        background-color: #45a049; /* Darker green on hover */
-        transform: translateY(-2px); /* Slight lift effect */
-        box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+      background-color: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 8px rgba(0,0,0,0.15);
     }
     button:active {
-        transform: translateY(0);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     #detailButton {
-        background-color: #007bff; /* Blue button for detail */
+      background-color: #007bff;
     }
     #detailButton:hover {
-        background-color: #0056b3;
+      background-color: #0056b3;
     }
     #output {
-        margin-top: 30px;
-        padding: 25px;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        background-color: #ffffff;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        min-width: 500px;
-        max-width: 90%; /* Responsive width */
-        text-align: center;
+      margin-top: 30px;
+      padding: 25px;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      background-color: #ffffff;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      min-width: 500px;
+      max-width: 90%;
+      text-align: center;
     }
     table {
-        width: 100%;
-        border-collapse: separate; /* For rounded corners on cells */
-        border-spacing: 0;
-        margin-top: 20px;
-        border-radius: 8px; /* Rounded table corners */
-        overflow: hidden; /* Ensures content respects border-radius */
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 20px;
+      border-radius: 8px;
+      overflow: hidden;
     }
     th, td {
-        border: 1px solid #e0e0e0;
-        padding: 12px;
-        text-align: left;
-        font-size: 0.95em;
+      border: 1px solid #e0e0e0;
+      padding: 12px;
+      text-align: left;
+      font-size: 0.95em;
     }
     th {
-        background-color: #f8f8f8;
-        font-weight: bold;
-        color: #444;
+      background-color: #f8f8f8;
+      font-weight: bold;
+      color: #444;
     }
     tr:nth-child(even) {
-        background-color: #f9f9f9; /* Zebra striping */
+      background-color: #f9f9f9;
     }
     tr:hover {
-        background-color: #f0f0f0; /* Hover effect on rows */
+      background-color: #f0f0f0;
     }
     .error {
-        color: #d9534f; /* Red for errors */
-        font-weight: bold;
-        background-color: #fcf8f8;
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px solid #ebccd1;
+      color: #d9534f;
+      font-weight: bold;
+      background-color: #fcf8f8;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ebccd1;
     }
     .success-message {
-        color: #5cb85c; /* Green for success */
-        font-weight: bold;
-        background-color: #dff0d8;
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px solid #d6e9c6;
+      color: #5cb85c;
+      font-weight: bold;
+      background-color: #dff0d8;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #d6e9c6;
     }
-    /* Chart specific styles */
     #chartContainer {
-        margin-top: 30px;
-        background-color: #ffffff;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        width: 90%;
-        max-width: 700px; /* Max width for chart */
-        overflow-x: auto; /* Enable horizontal scrolling for small screens */
+      margin-top: 30px;
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 700px;
+      overflow-x: auto;
     }
-    /* Chart.js uses canvas, so we style the canvas directly */
     #weightChartCanvas {
-        width: 100% !important; /* Important to override default canvas sizing */
-        height: 300px !important; /* Fixed height for the chart area */
+      width: 100% !important;
+      height: 300px !important;
     }
-</style>
+  </style>
 </head>
 <body>
 
-    <h1>ค้นหาข้อมูลผู้ป่วย</h1>
+  <h1>ค้นหาข้อมูลผู้ป่วย</h1>
 
-    <label for="inputHN">กรอก Hospital ID (HN):</label>
-    <input type="text" id="inputHN" placeholder="เช่น 000000">
-    <div class="button-group">
-        <button onclick="fetchBasicPatientData()">ค้นหาข้อมูลทั่วไป</button>
-        <button onclick="fetchDetailedPatientData()" id="detailButton" style="display:none;">ดูรายละเอียด HN และกราฟ</button>
-    </div>
+  <label for="inputHN">กรอก Hospital ID (HN):</label>
+  <input type="text" id="inputHN" placeholder="เช่น 000000">
 
-    <div id="output">
-        ข้อมูลหรือสถานะการค้นหาจะแสดงที่นี่
-    </div>
+  <div class="button-group">
+    <button onclick="fetchBasicPatientData()">ค้นหาข้อมูลทั่วไป</button>
+    <button onclick="fetchDetailedPatientData()" id="detailButton" style="display:none;">ดูรายละเอียด HN และกราฟ</button>
+  </div>
 
-    <div id="chartContainer" style="display:none;">
-        <h2>กราฟน้ำหนัก (Weight_Total)</h2>
-        <canvas id="weightChartCanvas"></canvas> <!-- Changed from SVG to Canvas -->
-    </div>
+  <div id="output">ข้อมูลหรือสถานะการค้นหาจะแสดงที่นี่</div>
 
-    <script>
-        // *** สำคัญ: อัปเดต URL นี้ด้วย Web app URL ของคุณ ***
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz9H_pwydRsWRYmz84NegPpHaDJbXOHEywmdXQG6f_AywWd9XtFc4DctGVTMuBfvBNgGw/exec'; // Replace with your actual deployed Apps Script Web App URL
-        
-        // Stores the last found HN
-        let lastFoundHN = null; 
-        let weightChartInstance = null; // Variable to hold the Chart.js instance
+  <div id="chartContainer" style="display:none;">
+    <h2>กราฟน้ำหนัก (Weight_Total)</h2>
+    <canvas id="weightChartCanvas"></canvas>
+  </div>
 
-        // Manually assign date-fns to the Chart.js adapter's internal date utility
-        // This should be done after both date-fns and chartjs-adapter-date-fns are loaded.
-        // This is a workaround to ensure the adapter finds date-fns functions.
-        (function() {
-            if (typeof Chart !== 'undefined' && typeof dateFns !== 'undefined') {
-                try {
-                    // This line attempts to register the date-fns adapter.
-                    // The adapter itself usually handles finding date-fns if it's global.
-                    // If Chart._adapters._date is not directly exposed for registration,
-                    // we might need a more direct assignment.
-                    if (Chart._adapters && Chart._adapters._date) {
-                         // This is the direct assignment that might be missing
-                        Chart._adapters._date.date = dateFns;
-                        console.log("date-fns manually assigned to Chart._adapters._date.date.");
-                    }
-                    // Also try the general Chart.register approach for adapters
-                    // This assumes the adapter exposes itself as a plugin
-                    if (typeof ChartjsAdapterDateFns !== 'undefined') { // Check if the adapter global is available
-                         Chart.register(ChartjsAdapterDateFns); // This is how some adapters are registered
-                         console.log("ChartjsAdapterDateFns explicitly registered as a plugin.");
-                    } else {
-                        console.warn("ChartjsAdapterDateFns global variable not found for plugin registration.");
-                    }
-                    
-                } catch (e) {
-                    console.error("Error during Chart.js date adapter manual setup:", e);
-                }
-            } else {
-                console.warn("Chart.js or dateFns not fully loaded/available for manual adapter setup.");
-            }
-        })();
+  <script>
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw_shUnHRCK2h5ocXiqOd4TOZeX_yNCubqjQCBFHiarErPKYIPkia9mDRRB3gTb7K7Urw/exec';
 
+    let lastFoundHN = null;
+    let weightChartInstance = null;
 
-        // Function to format date to Thai Buddhist calendar
-        function formatThaiDate(isoDateString) {
-            if (!isoDateString) return '';
+    window.addEventListener('load', () => {
+      if (typeof Chart !== 'undefined' && typeof dateFns !== 'undefined' && typeof ChartjsAdapterDateFns !== 'undefined') {
+        if (Chart._adapters && Chart._adapters._date) {
+          Chart._adapters._date.date = dateFns;
+        }
+        Chart.register(ChartjsAdapterDateFns);
+      }
+    });
 
-            const date = new Date(isoDateString);
-            if (isNaN(date.getTime())) {
-                return isoDateString; 
-            }
+    function formatThaiDate(isoDateString) {
+      const date = new Date(isoDateString);
+      if (isNaN(date)) return isoDateString;
+      const day = date.getDate();
+      const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+        "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+      const month = monthNames[date.getMonth()];
+      const year = date.getFullYear() + 543;
+      return `${day} ${month} ${year}`;
+    }
 
-            const day = date.getDate();
-            const monthNames = [
-                "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-                "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-            ];
-            const month = monthNames[date.getMonth()];
-            const yearBuddhist = date.getFullYear() + 543; 
+    async function fetchBasicPatientData() {
+      const inputHN = document.getElementById('inputHN').value.trim();
+      const output = document.getElementById('output');
+      const detailButton = document.getElementById('detailButton');
+      const chartContainer = document.getElementById('chartContainer');
 
-            return `${day} ${month} ${yearBuddhist}`;
+      output.innerHTML = 'กำลังค้นหาข้อมูลทั่วไป...';
+      output.className = '';
+      detailButton.style.display = 'none';
+      chartContainer.style.display = 'none';
+
+      if (!inputHN) {
+        output.innerHTML = '<span class="error">กรุณากรอก Hospital ID ก่อน</span>';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${WEB_APP_URL}?hn=${encodeURIComponent(inputHN)}`);
+        const data = await res.json();
+
+        if (!data.found) {
+          output.innerHTML = `<span class="error">${data.message || 'ไม่พบข้อมูลผู้ป่วย'}</span>`;
+          return;
         }
 
-        // Function to fetch basic patient data from the main sheet
-        async function fetchBasicPatientData() {
-            const inputHN = document.getElementById('inputHN').value.trim();
-            const outputDiv = document.getElementById('output');
-            const detailButton = document.getElementById('detailButton');
-            const chartContainer = document.getElementById('chartContainer');
-            
-            outputDiv.innerHTML = 'กำลังค้นหาข้อมูลทั่วไป...';
-            outputDiv.className = ''; 
-            detailButton.style.display = 'none'; // Hide detail button initially
-            chartContainer.style.display = 'none'; // Hide chart container
+        lastFoundHN = data.HospitalID;
+        output.innerHTML = `
+          <h2>ข้อมูลผู้ป่วย (จากไฟล์หลัก):</h2>
+          <table>
+            <tr><th>Hospital ID</th><th>วันเกิด</th><th>อายุ</th><th>เพศ</th></tr>
+            <tr><td>${data.HospitalID}</td><td>${formatThaiDate(data.BirthDate)}</td><td>${data.Age}</td><td>${data.Gender}</td></tr>
+          </table>`;
+        detailButton.style.display = 'inline-block';
+      } catch (err) {
+        output.innerHTML = `<span class="error">เกิดข้อผิดพลาดในการเชื่อมต่อ: ${err.message}</span>`;
+      }
+    }
 
-            if (!inputHN) {
-                outputDiv.innerHTML = '<span class="error">กรุณากรอก Hospital ID ก่อน</span>';
-                lastFoundHN = null;
-                return;
-            }
+    async function fetchDetailedPatientData() {
+      const output = document.getElementById('output');
+      const chartContainer = document.getElementById('chartContainer');
+      if (!lastFoundHN) {
+        output.innerHTML = '<span class="error">กรุณาค้นหาข้อมูลทั่วไปก่อน</span>';
+        return;
+      }
 
-            // Add 'hn' parameter to let Apps Script know to call getPatientDataFromMainSheet
-            const url = `${WEB_APP_URL}?hn=${encodeURIComponent(inputHN)}`;
+      output.innerHTML = 'กำลังโหลดข้อมูล...';
+      chartContainer.style.display = 'none';
 
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json(); 
+      try {
+        const res = await fetch(`${WEB_APP_URL}?hnDetail=${encodeURIComponent(lastFoundHN)}`);
+        const data = await res.json();
 
-                if (data.success === false) {
-                    outputDiv.innerHTML = `<span class="error">เกิดข้อผิดพลาด: ${data.error || data.message}</span>`;
-                    lastFoundHN = null;
-                } else if (data.found) {
-                    const formattedBirthDate = formatThaiDate(data.BirthDate);
-
-                    let htmlContent = '<h2>ข้อมูลผู้ป่วย (จากไฟล์หลัก):</h2>';
-                    htmlContent += '<table>';
-                    htmlContent += '<tr><th>Hospital ID</th><th>วันเกิด</th><th>อายุ</th><th>เพศ</th></tr>';
-                    htmlContent += `<tr>
-                                        <td>${data.HospitalID}</td>
-                                        <td>${formattedBirthDate}</td>
-                                        <td>${data.Age}</td>
-                                        <td>${data.Gender}</td>
-                                    </tr>`;
-                    htmlContent += '</table>';
-                    outputDiv.innerHTML = htmlContent;
-                    lastFoundHN = data.HospitalID; // Store found HN
-                    detailButton.style.display = 'inline-block'; // Show detail button
-                } else {
-                    outputDiv.innerHTML = `<span class="error">${data.message}</span>`;
-                    lastFoundHN = null;
-                }
-            } catch (error) {
-                outputDiv.innerHTML = `<span class="error">เกิดข้อผิดพลาดในการเชื่อมต่อ: ${error.message}</span>`;
-                console.error('Fetch error (basic data):', error);
-                lastFoundHN = null;
-            }
+        if (!data.found || !data.weightChartData?.length) {
+          output.innerHTML += '<p class="error">ไม่พบข้อมูลที่เพียงพอสำหรับสร้างกราฟ</p>';
+          return;
         }
 
-        // Function to fetch detailed patient data and chart data
-        async function fetchDetailedPatientData() {
-            const outputDiv = document.getElementById('output');
-            const chartContainer = document.getElementById('chartContainer');
-            
-            if (!lastFoundHN) {
-                outputDiv.innerHTML = '<span class="error">กรุณาค้นหาข้อมูลทั่วไปก่อน เพื่อให้ได้ HN</span>';
-                return;
+        output.innerHTML = `<h2>ข้อมูลละเอียดสำหรับ HN: ${data.HospitalID}</h2>`;
+        renderWeightChart(data.weightChartData);
+        chartContainer.style.display = 'block';
+      } catch (err) {
+        output.innerHTML = `<span class="error">เกิดข้อผิดพลาด: ${err.message}</span>`;
+      }
+    }
+
+    function renderWeightChart(data) {
+      const ctx = document.getElementById('weightChartCanvas').getContext('2d');
+      if (weightChartInstance) weightChartInstance.destroy();
+
+      const chartData = data.map(d => ({
+        x: new Date(d.timestamp),
+        y: parseFloat(d.weight)
+      })).filter(d => !isNaN(d.x) && !isNaN(d.y));
+
+      weightChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'น้ำหนัก (kg)',
+            data: chartData,
+            borderColor: '#4a90e2',
+            backgroundColor: 'rgba(74,144,226,0.2)',
+            borderWidth: 3,
+            pointRadius: 5,
+            fill: false,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                unit: 'day',
+                tooltipFormat: 'yyyy-MM-dd',
+                displayFormats: { day: 'yyyy-MM-dd' }
+              },
+              title: { display: true, text: 'วันที่' }
+            },
+            y: {
+              beginAtZero: false,
+              title: { display: true, text: 'น้ำหนัก (kg)' }
             }
-
-            outputDiv.innerHTML = `กำลังดึงข้อมูลรายละเอียดและกราฟสำหรับ HN: ${lastFoundHN} ...`;
-            outputDiv.className = ''; 
-            chartContainer.style.display = 'none'; // Hide chart until data is ready
-
-            const url = `${WEB_APP_URL}?hnDetail=${encodeURIComponent(lastFoundHN)}`;
-
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json(); 
-
-                if (data.success === false) {
-                    outputDiv.innerHTML = `<span class="error">เกิดข้อผิดพลาด: ${data.error || data.message}</span>`;
-                } else if (data.found) {
-                    let htmlContent = `<h2>ข้อมูลละเอียดสำหรับ HN: ${data.HospitalID} (จากไฟล์ HN${data.HospitalID}.gsheet)</h2>`;
-                    
-                    // Removed the patientDetails table as it was displaying "----SessionStart----"
-                    // and basic patient data is already shown from the main sheet.
-                    // If you need to display specific patient details from the detailed sheet,
-                    // you will need to adjust the Apps Script to send relevant data
-                    // and uncomment/modify this section.
-                    // if (data.patientDetails) {
-                    //     htmlContent += '<table>';
-                    //     htmlContent += '<tr><th>Hospital ID</th><th>ข้อมูลละเอียด 1</th><th>ข้อมูลละเอียด 2</th></tr>'; 
-                    //     htmlContent += `<tr>
-                    //                         <td>${data.patientDetails.HospitalID}</td>
-                    //                         <td>${data.patientDetails.DetailedField1 || 'N/A'}</td> 
-                    //                         <td>${data.patientDetails.DetailedField2 || 'N/A'}</td>
-                    //                     </tr>`;
-                    //     htmlContent += '</table>';
-                    // } else {
-                    //     htmlContent += '<p>ไม่พบข้อมูลรายละเอียดผู้ป่วยในไฟล์นี้.</p>';
-                    // }
-                    
-                    outputDiv.innerHTML = htmlContent;
-
-                    // Render chart if weightChartData is available
-                    if (data.weightChartData && data.weightChartData.length > 0) {
-                        renderWeightChart(data.weightChartData);
-                        chartContainer.style.display = 'block'; // Show chart container
-                    } else {
-                        chartContainer.style.display = 'none';
-                        outputDiv.innerHTML += '<p class="error">ไม่พบข้อมูล TimeStamp หรือ Weight_Total สำหรับสร้างกราฟในไฟล์นี้.</p>';
-                    }
-
-                } else {
-                    outputDiv.innerHTML = `<span class="error">${data.message}</span>`;
-                }
-            } catch (error) {
-                outputDiv.innerHTML = `<span class="error">เกิดข้อผิดพลาดในการเชื่อมต่อเพื่อดึงข้อมูลละเอียด: ${error.message}</span>`;
-                console.error('Fetch error (detailed data):', error);
-            }
+          }
         }
-
-        // Function to render the weight chart using Chart.js
-        function renderWeightChart(chartData) {
-            const canvas = document.getElementById('weightChartCanvas');
-            const ctx = canvas.getContext('2d');
-
-            // Destroy existing chart instance if it exists
-            if (weightChartInstance) {
-                weightChartInstance.destroy();
-            }
-
-            console.log("Raw chartData received by renderWeightChart:", JSON.parse(JSON.stringify(chartData)));
-
-            // Prepare data for Chart.js
-            // Chart.js's 'time' scale can parse ISO 8601 strings directly, or Date objects.
-            // We'll ensure weight is a number.
-            const processedChartData = chartData.map(d => {
-                const timestamp = new Date(d.timestamp); // Attempt to create Date object
-                const weight = +d.weight; // Convert to number
-
-                console.log(`Processing: timestamp='${d.timestamp}' -> ${timestamp} (${isNaN(timestamp.getTime()) ? 'Invalid Date' : 'Valid Date'}), weight='${d.weight}' -> ${weight} (isNaN: ${isNaN(weight)})`);
-                
-                return {
-                    x: timestamp,
-                    y: weight
-                };
-            }).filter(d => !isNaN(d.x.getTime()) && !isNaN(d.y)); // Filter out invalid dates or weights
-
-            const originalLength = chartData.length;
-            console.log(`Filtered chartData (original: ${originalLength}, after filter: ${processedChartData.length}):`, processedChartData);
-
-            if (processedChartData.length === 0) {
-                document.getElementById('chartContainer').style.display = 'none';
-                if (!document.getElementById('output').innerHTML.includes('ไม่มีข้อมูลที่ถูกต้องสำหรับสร้างกราฟ.')) {
-                    document.getElementById('output').innerHTML += '<p class="error">ไม่มีข้อมูลที่ถูกต้องสำหรับสร้างกราฟ.</p>';
-                }
-                return;
-            }
-
-            // Create the Chart.js instance
-            weightChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    datasets: [{
-                        label: 'Weight (kg)',
-                        data: processedChartData,
-                        borderColor: '#4a90e2', // Blue line
-                        backgroundColor: 'rgba(74, 144, 226, 0.2)', // Light blue fill under line
-                        borderWidth: 3,
-                        pointRadius: 5,
-                        pointBackgroundColor: '#4a90e2',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 1.5,
-                        fill: false, // Do not fill area under the line
-                        tension: 0.3 // Smooth the line
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false, // Allow canvas to take defined height
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'day', // Display ticks by day
-                                tooltipFormat: 'yyyy-MM-dd', // Format for tooltip
-                                displayFormats: {
-                                    day: 'yyyy-MM-dd' // Format for axis labels
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: 'Date'
-                            },
-                            ticks: {
-                                color: '#666'
-                            },
-                            grid: {
-                                color: '#eee'
-                            }
-                        },
-                        y: {
-                            beginAtZero: false, // Allow y-axis to start above zero if all weights are high
-                            title: {
-                                display: true,
-                                text: 'Weight (kg)'
-                            },
-                            ticks: {
-                                color: '#666'
-                            },
-                            grid: {
-                                color: '#eee'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                color: '#333'
-                            }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            callbacks: {
-                                title: function(context) {
-                                    return new Date(context[0].parsed.x).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
-                                },
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        label += context.parsed.y + ' kg';
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        // Add resize listener for responsive chart
-        window.addEventListener('resize', () => {
-            if (document.getElementById('chartContainer').style.display === 'block' && lastFoundHN && weightChartInstance) {
-                // Chart.js handles responsiveness automatically if maintainAspectRatio is false
-                // and width/height are set via CSS. No explicit re-render needed.
-                // However, if you need to re-fetch data on resize, keep this.
-                // For now, let's just update the chart if it exists.
-                weightChartInstance.resize(); 
-            }
-        });
-    </script>
-
+      });
+    }
+  </script>
 </body>
 </html>

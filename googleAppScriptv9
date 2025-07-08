@@ -1,0 +1,141 @@
+const MAIN_SPREADSHEET_ID = "1x2mxHvVRwscJAI3jS0DwlFazJN9xEMTg80kcrSOgwnY"; // ID ของไฟล์ UserIds หลัก
+const MAIN_SHEET_NAME = "UserIDs"; // ชื่อชีท (tab) ที่ต้องการอ่านข้อมูลจากไฟล์ UserIds (ใช้สำหรับไฟล์หลักเท่านั้น)
+
+/**
+ * ฟังก์ชันหลักสำหรับ Web App ที่จะถูกเรียกใช้เมื่อมีการส่งคำขอ GET
+ * สามารถรับพารามิเตอร์ 'hn' เพื่อค้นหาข้อมูลผู้ป่วยจากไฟล์ UserIds หลัก
+ * หรือรับพารามิเตอร์ 'hnDetail' เพื่อค้นหาข้อมูลจากไฟล์ Spreadsheet HNxxxxxx
+ */
+function doGet(e) {
+  // ตรวจสอบว่ามีการเรียกฟังก์ชันเพื่อค้นหาข้อมูลผู้ป่วยจาก UserIds หลัก
+  if (e.parameter.hn) {
+    return getPatientDataFromMainSheet(e.parameter.hn);
+  }
+  // ตรวจสอบว่ามีการเรียกฟังก์ชันเพื่อค้นหาข้อมูลจากไฟล์ Spreadsheet HNxxxxxx โดยเฉพาะ
+  else if (e.parameter.hnDetail) {
+    return getDetailedPatientData(e.parameter.hnDetail);
+  }
+  // ถ้าไม่มีพารามิเตอร์ที่คาดหวัง
+  else {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: "ไม่มีพารามิเตอร์ที่ระบุ (hn หรือ hnDetail)."
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * ฟังก์ชันสำหรับดึงข้อมูลผู้ป่วยจาก Spreadsheet 'UserIds' หลัก
+ * @param {string} hn - Hospital ID ที่ต้องการค้นหา
+ * @returns {ContentService.TextOutput} JSON response containing patient data or error.
+ */
+function getPatientDataFromMainSheet(hn) {
+  try {
+    var ss = SpreadsheetApp.openById(MAIN_SPREADSHEET_ID); 
+    var sheet = ss.getSheetByName(MAIN_SHEET_NAME); // ยังคงใช้ชื่อชีทสำหรับไฟล์หลัก
+
+    if (!sheet) {
+      Logger.log("Error: Sheet (tab) '" + MAIN_SHEET_NAME + "' not found in main spreadsheet.");
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        hn: hn,
+        error: "ไม่พบชีท (tab) ชื่อ '" + MAIN_SHEET_NAME + "' ในไฟล์ UserIds หลัก."
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var data = sheet.getDataRange().getValues();
+    var result = { found: false, message: "ไม่พบข้อมูลสำหรับ HN: " + hn + " ในไฟล์หลัก." };
+
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]).trim() === String(hn).trim()) {
+        result = {
+          found: true,
+          HospitalID: data[i][0],
+          BirthDate: data[i][1],
+          Age: data[i][2],
+          Gender: data[i][3]
+        };
+        break; 
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    Logger.log("Error processing HN " + hn + " from main sheet: " + err.message);
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      hn: hn,
+      error: "เกิดข้อผิดพลาดในการดึงข้อมูลจากไฟล์หลัก: " + err.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * ฟังก์ชันสำหรับดึงข้อมูลผู้ป่วยแบบละเอียดจาก Spreadsheet ชื่อ HNxxxxxx
+ * @param {string} hn - Hospital ID ที่ต้องการค้นหาไฟล์และดึงข้อมูล
+ * @returns {ContentService.TextOutput} JSON response containing patient data or error.
+ */
+function getDetailedPatientData(hn) {
+  const expectedFileName = "HN" + hn; 
+  let spreadsheetIdToOpen = null;
+
+  try {
+    const files = DriveApp.getFilesByName(expectedFileName);
+
+    if (files.hasNext()) {
+      const file = files.next();
+      spreadsheetIdToOpen = file.getId();
+    } else {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        hn: hn,
+        message: "ไม่พบไฟล์ Spreadsheet ชื่อ '" + expectedFileName + "' ใน Google Drive ของคุณ."
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var ss = SpreadsheetApp.openById(spreadsheetIdToOpen); 
+    
+    // *** เปลี่ยนมาใช้ชีทแรกของ Spreadsheet แทนการระบุชื่อชีท ***
+    var sheet = ss.getSheets()[0]; 
+
+    if (!sheet) {
+      Logger.log("Error: First sheet not found in detailed spreadsheet '" + expectedFileName + "'.");
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        hn: hn,
+        error: "ไม่พบชีทแรกในไฟล์ HN: " + hn + "."
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var data = sheet.getDataRange().getValues();
+    
+    // ตรวจสอบว่ามีข้อมูลในแถวที่ 2 (index 1) และคอลัมน์ A ไม่ว่าง
+    // คุณอาจต้องปรับ index ของ data[1][...] ให้ตรงกับโครงสร้างข้อมูลละเอียดในชีทแรกของไฟล์ HNxxxxxx
+    if (data.length > 1 && data[1][0] !== "") { 
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        found: true,
+        HospitalID: data[1][0], // สมมติว่า HN อยู่ใน A2 ของชีทแรกในไฟล์ HNxxxxxx
+        DetailedField1: data[1][4], // ตัวอย่าง: สมมติข้อมูลละเอียดอยู่ใน Column E (index 4)
+        DetailedField2: data[1][5], // ตัวอย่าง: สมมติข้อมูลละเอียดอยู่ใน Column F (index 5)
+        // ... เพิ่ม field อื่นๆ ตามคอลัมน์ในไฟล์ HNxxxxxx
+      })).setMimeType(ContentService.MimeType.JSON);
+    } else {
+        return ContentService.createTextOutput(JSON.stringify({
+            success: false,
+            hn: hn,
+            message: "ไม่พบข้อมูลละเอียดสำหรับ HN: " + hn + " ในชีทแรกของไฟล์ " + expectedFileName + "."
+        })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+  } catch (err) {
+    Logger.log("Error processing detailed HN " + hn + ": " + err.message);
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      hn: hn,
+      error: "เกิดข้อผิดพลาดในการดึงข้อมูลละเอียด: " + err.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}

@@ -178,7 +178,7 @@
     </div>
 
     <script>
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx8zI0yn_G5kyGyp3NWlrrSPXHXMphgOFQKKr9Wo27o0nzB-Ita8xiwfDVikjv-1XJyiw/exec';
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw_shUnHRCK2h5ocXiqOd4TOZeX_yNCubqjQCBFHiarErPKYIPkia9mDRRB3gTb7K7Urw/exec';
         
         // Stores the last found HN
         let lastFoundHN = null; 
@@ -340,19 +340,32 @@
             const g = svg.append("g")
                          .attr("transform", `translate(${margin.left},${margin.top})`);
 
-            // Parse dates
-            const parseTime = d3.timeParse("%Y-%m-%dT%H:%M:%S.%LZ"); // Adjust format if needed
+            // console.log for debugging
+            console.log("Raw chartData received by renderWeightChart:", JSON.parse(JSON.stringify(chartData))); // Use JSON.parse(JSON.stringify()) to deep copy and inspect
+
+
+            // Adjust parseTime format to match your spreadsheet data (e.g., "2025/7/1")
+            const parseTime = d3.timeParse("%Y/%m/%d"); 
+            // If your spreadsheet data has time, e.g., "2025/7/1 17:00:00", use: d3.timeParse("%Y/%m/%d %H:%M:%S")
+            // If Apps Script is sending ISO strings like "2025-07-01T17:00:00.000Z", revert to: d3.timeParse("%Y-%m-%dT%H:%M:%S.%LZ")
+
             chartData.forEach(d => {
-                d.timestamp = parseTime(d.timestamp);
+                d.timestamp = parseTime(String(d.timestamp)); // Ensure timestamp is a string for parseTime
                 d.weight = +d.weight; // Ensure weight is a number
+                console.log(`Parsed: timestamp=${d.timestamp} (${d.timestamp instanceof Date ? 'Valid Date' : 'Invalid Date'}), weight=${d.weight} (isNaN: ${isNaN(d.weight)})`);
             });
 
             // Filter out invalid dates or weights
-            chartData = chartData.filter(d => d.timestamp && !isNaN(d.weight));
+            const originalLength = chartData.length;
+            chartData = chartData.filter(d => d.timestamp && !isNaN(d.weight) && d.timestamp instanceof Date);
+            console.log(`Filtered chartData (original: ${originalLength}, after filter: ${chartData.length}):`, chartData);
 
             if (chartData.length === 0) {
                 d3.select("#chartContainer").style("display", "none");
-                document.getElementById('output').innerHTML += '<p class="error">ไม่มีข้อมูลที่ถูกต้องสำหรับสร้างกราฟ.</p>';
+                // Check if the output div already has an error, if not, add this specific one
+                if (!document.getElementById('output').innerHTML.includes('ไม่มีข้อมูลที่ถูกต้องสำหรับสร้างกราฟ.')) {
+                    document.getElementById('output').innerHTML += '<p class="error">ไม่มีข้อมูลที่ถูกต้องสำหรับสร้างกราฟ.</p>';
+                }
                 return;
             }
 

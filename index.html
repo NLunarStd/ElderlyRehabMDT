@@ -6,12 +6,9 @@
   <!-- Font -->
   <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
   
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <!-- date-fns CDN URL -->
-  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/cdn.min.js"></script>
-  <!-- Chart.js adapter for date-fns CDN URL -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.min.js"></script>
+  <!-- D3.js -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <!-- Removed Chart.js, date-fns, and Chart.js adapter for date-fns -->
 
   <style>
     body {
@@ -134,19 +131,36 @@
       border-radius: 8px;
       border: 1px solid #d6e9c6;
     }
+    /* Chart specific styles for D3.js SVG */
     #chartContainer {
-      margin-top: 30px;
-      background-color: #ffffff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      width: 90%;
-      max-width: 700px;
-      overflow-x: auto;
+        margin-top: 30px;
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        width: 90%;
+        max-width: 700px; /* Max width for chart */
+        overflow-x: auto; /* Enable horizontal scrolling for small screens */
     }
-    #weightChartCanvas {
-      width: 100% !important;
-      height: 300px !important;
+    .axis path, .axis line {
+        fill: none;
+        stroke: #ccc;
+        shape-rendering: crispEdges;
+    }
+    .axis text {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.8em;
+        fill: #666;
+    }
+    .line {
+        fill: none;
+        stroke: #4a90e2; /* Blue line for chart */
+        stroke-width: 3px;
+    }
+    .dot {
+        fill: #4a90e2;
+        stroke: #fff;
+        stroke-width: 1.5px;
     }
   </style>
 </head>
@@ -166,7 +180,7 @@
 
   <div id="chartContainer" style="display:none;">
     <h2>กราฟน้ำหนัก (Weight_Total)</h2>
-    <canvas id="weightChartCanvas"></canvas>
+    <svg id="weightChartSVG"></svg> <!-- Changed back to SVG for D3.js -->
   </div>
 
   <script>
@@ -178,38 +192,9 @@
 
 
     let lastFoundHN = null;
-    let weightChartInstance = null;
+    // Removed weightChartInstance as it's specific to Chart.js
 
-    // This block ensures Chart.js and its adapter are fully loaded and date-fns is accessible.
-    // It will run once all scripts and DOM content are ready.
-    window.addEventListener('load', () => {
-        console.log("Window loaded. Attempting Chart.js adapter setup.");
-        if (typeof Chart !== 'undefined' && typeof dateFns !== 'undefined' && typeof ChartjsAdapterDateFns !== 'undefined') {
-            try {
-                // This is the crucial line: it assigns the globally available dateFns object
-                // to the internal 'date' property of the Chart.js date adapter.
-                // This ensures the adapter can find and use date-fns functions like 'toDate'.
-                // Note: dateFns is the global variable exposed by date-fns.umd.min.js or cdn.min.js
-                if (Chart._adapters && Chart._adapters._date) {
-                    Chart._adapters._date.date = dateFns;
-                    console.log("date-fns manually assigned to Chart._adapters._date.date. Success!");
-                } else {
-                    console.warn("Chart._adapters._date not available for direct dateFns assignment. This might be a Chart.js version incompatibility or loading issue.");
-                }
-                
-                // Register the adapter as a plugin.
-                // This is typically handled automatically by the UMD bundle,
-                // but explicit registration can help if auto-registration fails.
-                Chart.register(ChartjsAdapterDateFns); 
-                console.log("ChartjsAdapterDateFns explicitly registered as a plugin. Success!");
-                
-            } catch (e) {
-                console.error("Error during Chart.js date adapter setup:", e);
-            }
-        } else {
-            console.warn("Chart.js, dateFns, or ChartjsAdapterDateFns not fully loaded/available for adapter setup. Check script imports.");
-        }
-    });
+    // Removed the Chart.js adapter setup block as it's no longer needed.
 
     function formatThaiDate(isoDateString) {
       const date = new Date(isoDateString);
@@ -288,50 +273,120 @@
       }
     }
 
-    function renderWeightChart(data) {
-      const ctx = document.getElementById('weightChartCanvas').getContext('2d');
-      if (weightChartInstance) weightChartInstance.destroy();
+    // Function to render the weight chart using D3.js
+    function renderWeightChart(chartData) {
+        const svg = d3.select("#weightChartSVG");
+        svg.selectAll("*").remove(); // Clear previous chart
 
-      const chartData = data.map(d => ({
-        x: new Date(d.timestamp),
-        y: parseFloat(d.weight)
-      })).filter(d => !isNaN(d.x) && !isNaN(d.y));
+        // Make the SVG responsive
+        const containerWidth = d3.select("#chartContainer").node().getBoundingClientRect().width;
+        const margin = { top: 20, right: 30, bottom: 60, left: 60 };
+        const width = containerWidth - margin.left - margin.right;
+        const height = 300 - margin.top - margin.bottom; // Fixed height for chart area
 
-      weightChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-          datasets: [{
-            label: 'น้ำหนัก (kg)',
-            data: chartData,
-            borderColor: '#4a90e2',
-            backgroundColor: 'rgba(74,144,226,0.2)',
-            borderWidth: 3,
-            pointRadius: 5,
-            fill: false,
-            tension: 0.3
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              type: 'time',
-              time: {
-                unit: 'day',
-                tooltipFormat: 'yyyy-MM-dd',
-                displayFormats: { day: 'yyyy-MM-dd' }
-              },
-              title: { display: true, text: 'วันที่' }
-            },
-            y: {
-              beginAtZero: false,
-              title: { display: true, text: 'น้ำหนัก (kg)' }
+        svg.attr("width", width + margin.left + margin.right)
+           .attr("height", height + margin.top + margin.bottom);
+
+        const g = svg.append("g")
+                     .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        console.log("Raw chartData received by renderWeightChart:", JSON.parse(JSON.stringify(chartData))); 
+
+        // IMPORTANT: Adjust parseTime format to match the ISO string from Apps Script
+        // Based on the JSON response you provided earlier, the format is "2025-06-30T17:00:00.000Z"
+        const parseTime = d3.timeParse("%Y-%m-%dT%H:%M:%S.%LZ"); 
+        
+        chartData.forEach(d => {
+            console.log(`Before parsing: timestamp='${d.timestamp}' (type: ${typeof d.timestamp}), weight='${d.weight}' (type: ${typeof d.weight})`);
+            d.timestamp = parseTime(String(d.timestamp)); // Ensure timestamp is a string for parseTime
+            d.weight = +d.weight; // Ensure weight is a number
+            console.log(`After parsing: timestamp=${d.timestamp} (${d.timestamp instanceof Date && !isNaN(d.timestamp) ? 'Valid Date' : 'Invalid Date'}), weight=${d.weight} (isNaN: ${isNaN(d.weight)})`);
+        });
+
+        // Filter out invalid dates or weights
+        const originalLength = chartData.length;
+        chartData = chartData.filter(d => d.timestamp instanceof Date && !isNaN(d.timestamp) && !isNaN(d.weight));
+        console.log(`Filtered chartData (original: ${originalLength}, after filter: ${chartData.length}):`, chartData);
+
+        if (chartData.length === 0) {
+            d3.select("#chartContainer").style("display", "none");
+            // Check if the output div already has an error, if not, add this specific one
+            if (!document.getElementById('output').innerHTML.includes('ไม่มีข้อมูลที่ถูกต้องสำหรับสร้างกราฟ.')) {
+                document.getElementById('output').innerHTML += '<p class="error">ไม่มีข้อมูลที่ถูกต้องสำหรับสร้างกราฟ.</p>';
             }
-          }
+            return;
         }
-      });
+
+        // Define scales
+        const xScale = d3.scaleTime()
+                         .domain(d3.extent(chartData, d => d.timestamp))
+                         .range([0, width]);
+
+        const yScale = d3.scaleLinear()
+                         .domain([0, d3.max(chartData, d => d.weight) * 1.1]) // 10% padding on top
+                         .range([height, 0]);
+
+        // Define axes
+        const xAxis = d3.axisBottom(xScale)
+                        .tickFormat(d3.timeFormat("%Y-%m-%d")); // Format date on x-axis
+
+        const yAxis = d3.axisLeft(yScale);
+
+        // Add X axis
+        g.append("g")
+         .attr("class", "x axis")
+         .attr("transform", `translate(0,${height})`)
+         .call(xAxis)
+         .selectAll("text")
+           .style("text-anchor", "end")
+           .attr("dx", "-.8em")
+           .attr("dy", ".15em")
+           .attr("transform", "rotate(-45)"); // Rotate for better readability
+
+        // Add Y axis
+        g.append("g")
+         .attr("class", "y axis")
+         .call(yAxis);
+
+        // Add Y axis label
+        g.append("text")
+         .attr("transform", "rotate(-90)")
+         .attr("y", 0 - margin.left + 15)
+         .attr("x", 0 - (height / 2))
+         .attr("dy", "1em")
+         .style("text-anchor", "middle")
+         .style("font-size", "0.9em")
+         .style("fill", "#555")
+         .text("Weight (kg)"); // Y-axis label
+
+        // Define the line
+        const line = d3.line()
+                       .x(d => xScale(d.timestamp))
+                       .y(d => yScale(d.weight));
+
+        // Add the line path
+        g.append("path")
+         .datum(chartData)
+         .attr("class", "line")
+         .attr("d", line);
+
+        // Add circles for data points
+        g.selectAll(".dot")
+         .data(chartData)
+         .enter().append("circle")
+         .attr("class", "dot")
+         .attr("cx", d => xScale(d.timestamp))
+         .attr("cy", d => yScale(d.weight))
+         .attr("r", 4); // Radius of the dots
     }
+
+    // Add resize listener for responsive chart
+    window.addEventListener('resize', () => {
+        if (document.getElementById('chartContainer').style.display === 'block' && lastFoundHN) {
+            // Re-render chart if visible and HN is set
+            fetchDetailedPatientData(); 
+        }
+    });
   </script>
 </body>
 </html>

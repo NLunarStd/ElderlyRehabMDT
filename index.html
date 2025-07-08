@@ -178,7 +178,8 @@
     </div>
 
     <script>
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw_shUnHRCK2h5ocXiqOd4TOZeX_yNCubqjQCBFHiarErPKYIPkia9mDRRB3gTb7K7Urw/exec';
+        // *** สำคัญ: อัปเดต URL นี้ด้วย Web app URL ของคุณ ***
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz9H_pwydRsWRYmz84NegPpHaDJbXOHEywmdXQG6f_AywWd9XtFc4DctGVTMuBfvBNgGw/exec'; // Replace with your actual deployed Apps Script Web App URL
         
         // Stores the last found HN
         let lastFoundHN = null; 
@@ -289,19 +290,23 @@
                 } else if (data.found) {
                     let htmlContent = `<h2>ข้อมูลละเอียดสำหรับ HN: ${data.HospitalID} (จากไฟล์ HN${data.HospitalID}.gsheet)</h2>`;
                     
-                    // Display patient details if available
-                    if (data.patientDetails) {
-                        htmlContent += '<table>';
-                        htmlContent += '<tr><th>Hospital ID</th><th>ข้อมูลละเอียด 1</th><th>ข้อมูลละเอียด 2</th></tr>'; 
-                        htmlContent += `<tr>
-                                            <td>${data.patientDetails.HospitalID}</td>
-                                            <td>${data.patientDetails.DetailedField1 || 'N/A'}</td> 
-                                            <td>${data.patientDetails.DetailedField2 || 'N/A'}</td>
-                                        </tr>`;
-                        htmlContent += '</table>';
-                    } else {
-                        htmlContent += '<p>ไม่พบข้อมูลรายละเอียดผู้ป่วยในไฟล์นี้.</p>';
-                    }
+                    // Removed the patientDetails table as it was displaying "----SessionStart----"
+                    // and basic patient data is already shown from the main sheet.
+                    // If you need to display specific patient details from the detailed sheet,
+                    // you will need to adjust the Apps Script to send relevant data
+                    // and uncomment/modify this section.
+                    // if (data.patientDetails) {
+                    //     htmlContent += '<table>';
+                    //     htmlContent += '<tr><th>Hospital ID</th><th>ข้อมูลละเอียด 1</th><th>ข้อมูลละเอียด 2</th></tr>'; 
+                    //     htmlContent += `<tr>
+                    //                         <td>${data.patientDetails.HospitalID}</td>
+                    //                         <td>${data.patientDetails.DetailedField1 || 'N/A'}</td> 
+                    //                         <td>${data.patientDetails.DetailedField2 || 'N/A'}</td>
+                    //                     </tr>`;
+                    //     htmlContent += '</table>';
+                    // } else {
+                    //     htmlContent += '<p>ไม่พบข้อมูลรายละเอียดผู้ป่วยในไฟล์นี้.</p>';
+                    // }
                     
                     outputDiv.innerHTML = htmlContent;
 
@@ -341,23 +346,21 @@
                          .attr("transform", `translate(${margin.left},${margin.top})`);
 
             // console.log for debugging
-            console.log("Raw chartData received by renderWeightChart:", JSON.parse(JSON.stringify(chartData))); // Use JSON.parse(JSON.stringify()) to deep copy and inspect
+            console.log("Raw chartData received by renderWeightChart:", JSON.parse(JSON.stringify(chartData))); 
 
 
-            // Adjust parseTime format to match your spreadsheet data (e.g., "2025/7/1")
-            const parseTime = d3.timeParse("%Y/%m/%d"); 
-            // If your spreadsheet data has time, e.g., "2025/7/1 17:00:00", use: d3.timeParse("%Y/%m/%d %H:%M:%S")
-            // If Apps Script is sending ISO strings like "2025-07-01T17:00:00.000Z", revert to: d3.timeParse("%Y-%m-%dT%H:%M:%S.%LZ")
-
+            // IMPORTANT: Adjust parseTime format to match the ISO string from Apps Script
+            const parseTime = d3.timeParse("%Y-%m-%dT%H:%M:%S.%LZ"); 
+            
             chartData.forEach(d => {
                 d.timestamp = parseTime(String(d.timestamp)); // Ensure timestamp is a string for parseTime
                 d.weight = +d.weight; // Ensure weight is a number
-                console.log(`Parsed: timestamp=${d.timestamp} (${d.timestamp instanceof Date ? 'Valid Date' : 'Invalid Date'}), weight=${d.weight} (isNaN: ${isNaN(d.weight)})`);
+                console.log(`Parsed: timestamp=${d.timestamp} (${d.timestamp instanceof Date && !isNaN(d.timestamp) ? 'Valid Date' : 'Invalid Date'}), weight=${d.weight} (isNaN: ${isNaN(d.weight)})`);
             });
 
             // Filter out invalid dates or weights
             const originalLength = chartData.length;
-            chartData = chartData.filter(d => d.timestamp && !isNaN(d.weight) && d.timestamp instanceof Date);
+            chartData = chartData.filter(d => d.timestamp instanceof Date && !isNaN(d.timestamp) && !isNaN(d.weight));
             console.log(`Filtered chartData (original: ${originalLength}, after filter: ${chartData.length}):`, chartData);
 
             if (chartData.length === 0) {

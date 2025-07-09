@@ -3,12 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <title>Patient Data Search</title>
-  <!-- Font -->
   <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
   
-  <!-- D3.js -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <!-- Removed Chart.js, date-fns, and Chart.js adapter for date-fns -->
 
   <style>
     body {
@@ -131,7 +128,6 @@
       border-radius: 8px;
       border: 1px solid #d6e9c6;
     }
-    /* Chart specific styles for D3.js SVG */
     #chartContainer {
         margin-top: 30px;
         background-color: #ffffff;
@@ -139,8 +135,8 @@
         border-radius: 12px;
         box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         width: 90%;
-        max-width: 700px; /* Max width for chart */
-        overflow-x: auto; /* Enable horizontal scrolling for small screens */
+        max-width: 700px; 
+        overflow-x: auto; 
     }
     .axis path, .axis line {
         fill: none;
@@ -172,7 +168,7 @@
   <input type="text" id="inputHN" placeholder="เช่น 000000">
 
   <div class="button-group">
-    <button onclick="fetchBasicPatientData()">ค้นหาข้อมูลทั่วไป</button>
+    <button onclick="fetchBasicPatientData()">ค้นหาข้อมูล</button>
     <button onclick="fetchDetailedPatientData()" id="detailButton" style="display:none;">ดูรายละเอียด HN และกราฟ</button>
   </div>
 
@@ -180,21 +176,18 @@
 
   <div id="chartContainer" style="display:none;">
     <h2>กราฟน้ำหนัก (Weight_Total)</h2>
-    <svg id="weightChartSVG"></svg> <!-- Changed back to SVG for D3.js -->
+    <svg id="weightChartSVG"></svg>
   </div>
 
   <script>
-    // Updated WEB_APP_URL with the new URL provided by the user.
+
     if (typeof window.WEB_APP_URL === 'undefined') {
-      window.WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw_shUnHRCK2h5ocXiqOd4TOZeX_yNCubqjQCBFHiarErPKYIPkia9mDRRB3gTb7K7Urw/exec'; // Updated with new URL
+      window.WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw_shUnHRCK2h5ocXiqOd4TOZeX_yNCubqjQCBFHiarErPKYIPkia9mDRRB3gTb7K7Urw/exec'; 
     }
     const WEB_APP_URL = window.WEB_APP_URL;
 
 
     let lastFoundHN = null;
-    // Removed weightChartInstance as it's specific to Chart.js
-
-    // Removed the Chart.js adapter setup block as it's no longer needed.
 
     function formatThaiDate(isoDateString) {
       const date = new Date(isoDateString);
@@ -213,7 +206,7 @@
       const detailButton = document.getElementById('detailButton');
       const chartContainer = document.getElementById('chartContainer');
 
-      output.innerHTML = 'กำลังค้นหาข้อมูลทั่วไป...';
+      output.innerHTML = 'กำลังค้นหาข้อมูล...';
       output.className = '';
       detailButton.style.display = 'none';
       chartContainer.style.display = 'none';
@@ -249,7 +242,7 @@
       const output = document.getElementById('output');
       const chartContainer = document.getElementById('chartContainer');
       if (!lastFoundHN) {
-        output.innerHTML = '<span class="error">กรุณาค้นหาข้อมูลทั่วไปก่อน</span>';
+        output.innerHTML = '<span class="error">กรุณากดค้นหาข้อมูลก่อน</span>';
         return;
       }
 
@@ -273,12 +266,10 @@
       }
     }
 
-    // Function to render the weight chart using D3.js
     function renderWeightChart(chartData) {
         const svg = d3.select("#weightChartSVG");
         svg.selectAll("*").remove(); // Clear previous chart
 
-        // Make the SVG responsive
         const containerWidth = d3.select("#chartContainer").node().getBoundingClientRect().width;
         const margin = { top: 20, right: 30, bottom: 60, left: 60 };
         const width = containerWidth - margin.left - margin.right;
@@ -292,8 +283,7 @@
 
         console.log("Raw chartData received by renderWeightChart:", JSON.parse(JSON.stringify(chartData))); 
 
-        // IMPORTANT: Adjust parseTime format to match the ISO string from Apps Script
-        // Based on the JSON response you provided earlier, the format is "2025-06-30T17:00:00.000Z"
+        // แปลงเวลาจาก Spreadsheet
         const parseTime = d3.timeParse("%Y-%m-%dT%H:%M:%S.%LZ"); 
         
         chartData.forEach(d => {
@@ -303,7 +293,7 @@
             console.log(`After parsing: timestamp=${d.timestamp} (${d.timestamp instanceof Date && !isNaN(d.timestamp) ? 'Valid Date' : 'Invalid Date'}), weight=${d.weight} (isNaN: ${isNaN(d.weight)})`);
         });
 
-        // Filter out invalid dates or weights
+
         const originalLength = chartData.length;
         chartData = chartData.filter(d => d.timestamp instanceof Date && !isNaN(d.timestamp) && !isNaN(d.weight));
         console.log(`Filtered chartData (original: ${originalLength}, after filter: ${chartData.length}):`, chartData);
@@ -317,7 +307,6 @@
             return;
         }
 
-        // Define scales
         const xScale = d3.scaleTime()
                          .domain(d3.extent(chartData, d => d.timestamp))
                          .range([0, width]);
@@ -326,7 +315,6 @@
                          .domain([0, d3.max(chartData, d => d.weight) * 1.1]) // 10% padding on top
                          .range([height, 0]);
 
-        // Define axes
         const xAxis = d3.axisBottom(xScale)
                         .tickFormat(d3.timeFormat("%Y-%m-%d")); // Format date on x-axis
 
